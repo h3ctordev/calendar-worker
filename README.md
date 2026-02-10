@@ -1,6 +1,6 @@
 # Calendar Worker – OpenClaw ↔ Google Calendar Bridge
 
-This project is a Cloudflare Worker that exposes HTTP endpoints for OpenClaw to act as a multi-user bridge to Google Calendar. It handles OAuth 2.0 authentication, securely stores refresh tokens in Cloudflare KV, and exposes calendar endpoints scoped to each user via the `x-user-id` header.
+This project is a Cloudflare Worker that exposes HTTP endpoints for OpenClaw to act as a multi-user bridge to Google Calendar. It handles OAuth 2.0 authentication, securely stores refresh tokens in Cloudflare KV, and exposes calendar endpoints scoped to each user via the `x-user-id` header. For detailed documentation in Spanish (SDD, endpoint specs, and operational guides), review the `docs/` directory—especially `docs/system-design.md`, `docs/specs/`, and `docs/guides/`.
 
 ## Features
 
@@ -140,6 +140,13 @@ Errors return a standardized payload:
 - **Missing refresh token:** Ensure the OAuth request uses `access_type=offline` and `prompt=consent`.
 - **User not found:** Verify the user completed the OAuth flow and their KV entry exists.
 - **Clock skew issues:** Google Calendar queries rely on Worker runtime time; ensure timezone configuration matches expectations.
+
+## Changelog
+
+### 0.1.0 – Initial release
+- Scaffolded Cloudflare Worker with OAuth, KV, and calendar helpers.
+- Added Spanish SDD, endpoint specs, and operational guides under `docs/`.
+- Introduced pnpm-based workflow and deployment instructions.
 
 ---
 
