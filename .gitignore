@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+.pnp.cjs
+.pnp.loader.mjs
+
+# Build artifacts
+dist/
+worker/
+package-lock.json
+
+# Wrangler
+.wrangler/
+
+# Environment & secrets
+.env
+.env.*
+*.local
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

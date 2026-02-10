@@ -1,0 +1,19 @@
+name = "calendar-worker"
+main = "src/index.ts"
+compatibility_date = "2024-06-06"
+usage_model = "bundled"
+
+# Replace with your Cloudflare account ID before deploying.
+account_id = "YOUR_ACCOUNT_ID"
+
+[vars]
+GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
+GOOGLE_CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
+GOOGLE_REDIRECT_URI = "https://your-worker.example.com/auth/callback"
+
+[[kv_namespaces]]
+binding = "USERS_KV"
+id = "YOUR_KV_NAMESPACE_ID"
+
+[observability]
+enabled = true
