@@ -62,7 +62,7 @@ Antes de editar archivos, asegúrate de tener a mano tu **Cloudflare Account ID*
 4. Si prefieres la línea de comandos, ejecuta `pnpm dlx wrangler whoami` para mostrar el `account_id` asociado a tu sesión.
 
 ### 4.1 Variables en `wrangler.toml`
-Edita `wrangler.toml` con los valores reales:
+Edita `wrangler.toml` con los valores reales (para secretos sensibles usa el flujo descrito en `docs/guides/secrets-wrangler.md`):
 ```toml
 [vars]
 GOOGLE_CLIENT_ID = "tu_client_id.apps.googleusercontent.com"

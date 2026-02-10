@@ -47,7 +47,7 @@ GOOGLE_REDIRECT_URI="https://<tu-worker>.workers.dev/auth/callback"
 
 ### 3.2 Namespace KV de prueba
 
-Wrangler puede emular KV en local, pero para probar con el flujo OAuth real es recomendable crear un namespace de prueba:
+Wrangler puede emular KV en local, pero para probar con el flujo OAuth real es recomendable crear un namespace de prueba (consulta también `docs/guides/secrets-wrangler.md` para manejar las credenciales de forma segura):
 
 ```bash
 pnpm dlx wrangler kv:namespace create USERS_KV --preview
