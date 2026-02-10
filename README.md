@@ -39,7 +39,7 @@ README.md         # Project usage guide
 1. **Clone the repository** and install dependencies:
 
    ```shell
-   npm install
+   pnpm install
    ```
 
 2. **Create a Google OAuth client** (Web application):
@@ -56,7 +56,7 @@ README.md         # Project usage guide
 4. **Authenticate Wrangler**:
 
    ```shell
-   npx wrangler login
+   pnpm dlx wrangler login
    ```
 
 ## Development & Deployment
@@ -64,13 +64,13 @@ README.md         # Project usage guide
 - **Local development** (opens a tunnel + mock KV):
 
   ```shell
-  npm run dev
+  pnpm dev
   ```
 
 - **Deploy to Cloudflare**:
 
   ```shell
-  npm run deploy
+  pnpm deploy
   ```
 
 ## Endpoints
