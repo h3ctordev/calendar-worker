@@ -29,6 +29,7 @@ Este directorio contiene la documentación detallada de cada endpoint expuesto p
 - Redactar siempre en español técnico.
 - Usar ejemplos completos que muestren headers, query params y cuerpos JSON.
 - Documentar los estados de error más probables (401, 404, 500) con mensajes tal como los devuelve la API.
+- Indicar siempre cómo manejar los secretos: para uso local referenciar `.dev.vars` y para despliegues usar `wrangler secret`, según `docs/guides/secrets-wrangler.md`.
 - Referenciar otras secciones de `docs/` (por ejemplo, el SDD) cuando se describan dependencias o decisiones de diseño.
 
 Con esta estructura, el equipo dispone de un catálogo claro y evolutivo de los contratos HTTP que rigen Calendar Worker.

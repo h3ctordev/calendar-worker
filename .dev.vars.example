@@ -1,0 +1,9 @@
+# Copia este archivo a .dev.vars y actualiza los valores antes de ejecutar wrangler dev.
+# Nunca compartas este archivo ni lo incluyas en commits.
+GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="replace-with-google-client-secret"
+GOOGLE_REDIRECT_URI="https://your-worker.example.com/auth/callback"
+
+ACCOUNT_ID = "your-account-id"
+KV_NAMESPACE = "USERS_KV"
+KV_NAMESPACE_ID = "your-kv-namespace-id"

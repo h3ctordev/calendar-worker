@@ -59,6 +59,8 @@ README.md         # Project usage guide
    pnpm dlx wrangler login
    ```
 
+5. **Handle secrets safely**: For local development, place sensitive values in `.dev.vars` (you can copy `.dev.vars.example` as a starting point; the file is already ignored by git). For remote runs or deployments, inject the same secrets with `pnpm dlx wrangler secret put <NAME>` so that nothing sensitive lives inside `wrangler.toml`. See `docs/guides/secrets-wrangler.md` for the full workflow.
+
 ## Development & Deployment
 
 - **Local development** (opens a tunnel + mock KV):
