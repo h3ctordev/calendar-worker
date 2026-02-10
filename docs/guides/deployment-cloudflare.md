@@ -53,7 +53,13 @@ Esta guía explica cómo desplegar Calendar Worker en Cloudflare partiendo de un
 
 ---
 
-## 4. Configuración del proyecto
+### 4. Configuración del proyecto
+
+Antes de editar archivos, asegúrate de tener a mano tu **Cloudflare Account ID**:
+1. Inicia sesión en el panel de Cloudflare y selecciona la cuenta correcta desde la barra lateral izquierda.
+2. Ve a **Workers & Pages** → **Overview**; el ID aparecerá en la sección “Account details”.
+3. También puedes copiarlo desde la URL del dashboard (es la cadena alfanumérica entre `/accounts/` y `/workers/`).
+4. Si prefieres la línea de comandos, ejecuta `pnpm dlx wrangler whoami` para mostrar el `account_id` asociado a tu sesión.
 
 ### 4.1 Variables en `wrangler.toml`
 Edita `wrangler.toml` con los valores reales:
@@ -67,7 +73,7 @@ GOOGLE_REDIRECT_URI = "https://tu-worker.workers.dev/auth/callback"
 ### 4.2 Namespace KV
 1. Crea el namespace:
    ```bash
-   pnpm dlx wrangler kv:namespace create USERS_KV
+   pnpm dlx wrangler kv namespace create USERS_KV
    ```
 2. Copia el `id` retornado y reemplaza `YOUR_KV_NAMESPACE_ID` en `wrangler.toml`:
    ```toml
