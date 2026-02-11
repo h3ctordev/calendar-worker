@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and adheres to Conventional Commits for describing updates.
 
+## [2.0.0] - 2026-02-10
+### Added
+- Multi-calendar support: all calendar endpoints now fetch events from all accessible calendars
+- New `/calendar/list` endpoint to view all available calendars for a user
+- Comprehensive verbose logging system for debugging API calls and responses
+- Structured logging with request IDs, user context, and HTTP request/response details
+- Calendar event enrichment with source calendar information (ID, name, color)
+- Support for shared calendars, subscribed calendars, and calendar permissions
+- Parallel calendar fetching for improved performance
+- Automatic redaction of sensitive information in logs (tokens, secrets, authorization headers)
+
+### Changed
+- **BREAKING**: Calendar endpoints now return events from all accessible calendars instead of just primary
+- **BREAKING**: Event objects now include `calendar_id`, `calendar_name`, and `calendar_color` fields
+- **BREAKING**: Calendar responses now include `total_calendars`, `total_events`, and `calendars` array
+- OAuth scope requirements remain the same but now provide access to all user calendars
+- Error handling improved with detailed logging context
+- Event sorting now occurs globally across all calendars by start time
+
+### Enhanced
+- All Google API calls now include verbose request/response logging
+- KV operations include detailed logging for user storage/retrieval
+- OAuth flow includes comprehensive logging for token exchange and refresh
+- Response times and payload sizes logged for performance monitoring
+
 ## [1.0.0] - 2026-02-10
 ### Added
 - Bruno collection and comprehensive testing guides for API endpoint validation
