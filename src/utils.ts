@@ -4,6 +4,109 @@ const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
 };
 
+export interface LogContext {
+  requestId?: string;
+  userId?: string;
+  action?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Logs structured information for debugging API calls and responses.
+ */
+export function logInfo(message: string, context: LogContext = {}): void {
+  console.log(
+    JSON.stringify({
+      level: "INFO",
+      timestamp: new Date().toISOString(),
+      message,
+      ...context,
+    }),
+  );
+}
+
+/**
+ * Logs error information with structured context.
+ */
+export function logError(
+  message: string,
+  error?: Error,
+  context: LogContext = {},
+): void {
+  console.error(
+    JSON.stringify({
+      level: "ERROR",
+      timestamp: new Date().toISOString(),
+      message,
+      error: error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : undefined,
+      ...context,
+    }),
+  );
+}
+
+/**
+ * Logs HTTP request details for debugging API calls.
+ */
+export function logHttpRequest(
+  url: string,
+  options: RequestInit,
+  context: LogContext = {},
+): void {
+  const headers = options.headers
+    ? Object.fromEntries(
+        Object.entries(options.headers).map(([key, value]) => [
+          key,
+          // Redact sensitive headers
+          key.toLowerCase().includes("authorization") ||
+          key.toLowerCase().includes("secret")
+            ? "[REDACTED]"
+            : value,
+        ]),
+      )
+    : {};
+
+  logInfo("HTTP Request", {
+    ...context,
+    http: {
+      method: options.method || "GET",
+      url,
+      headers,
+      bodySize: options.body ? String(options.body).length : 0,
+    },
+  });
+}
+
+/**
+ * Logs HTTP response details for debugging API responses.
+ */
+export function logHttpResponse(
+  url: string,
+  response: Response,
+  responseText: string,
+  context: LogContext = {},
+): void {
+  logInfo("HTTP Response", {
+    ...context,
+    http: {
+      url,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      bodySize: responseText.length,
+      body:
+        responseText.length > 1000
+          ? `${responseText.substring(0, 1000)}... [TRUNCATED]`
+          : responseText,
+    },
+  });
+}
+
 export const DEFAULT_TIMEZONE = "America/Santiago";
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -187,11 +290,22 @@ export function getDateRange(
 /**
  * Safely parses JSON responses, throwing a descriptive error on failure.
  */
-export async function parseJsonResponse<T>(response: Response): Promise<T> {
+export async function parseJsonResponse<T>(
+  response: Response,
+  context: LogContext = {},
+): Promise<T> {
   const text = await response.text();
+
+  // Log the response for debugging
+  logHttpResponse(response.url, response, text, context);
+
   try {
     return JSON.parse(text) as T;
   } catch (error) {
+    logError("Failed to parse JSON response", error as Error, {
+      ...context,
+      responseText: text.length > 500 ? `${text.substring(0, 500)}...` : text,
+    });
     throw new Error(
       `Failed to parse JSON: ${text || (error as Error).message}`,
     );

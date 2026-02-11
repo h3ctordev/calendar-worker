@@ -37,6 +37,40 @@ export interface GoogleCalendarEvent {
   start: GoogleCalendarEventDateTime;
   end: GoogleCalendarEventDateTime;
   attendees?: Array<{ email: string; responseStatus?: string }>;
+  organizer?: {
+    email: string;
+    displayName?: string;
+    self?: boolean;
+  };
+  creator?: {
+    email: string;
+    displayName?: string;
+    self?: boolean;
+  };
+}
+
+export interface GoogleCalendarListEntry {
+  id: string;
+  summary: string;
+  description?: string;
+  timeZone?: string;
+  colorId?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  selected?: boolean;
+  accessRole: "freeBusyReader" | "reader" | "writer" | "owner";
+  defaultReminders?: Array<{
+    method: string;
+    minutes: number;
+  }>;
+  primary?: boolean;
+}
+
+export interface GoogleCalendarListResponse {
+  kind: string;
+  etag: string;
+  nextPageToken?: string;
+  items: GoogleCalendarListEntry[];
 }
 
 export interface GoogleCalendarEventsResponse {
@@ -47,4 +81,15 @@ export interface GoogleCalendarEventsResponse {
   updated?: string;
   nextPageToken?: string;
   items: GoogleCalendarEvent[];
+  accessRole?: string;
+  defaultReminders?: Array<{
+    method: string;
+    minutes: number;
+  }>;
+}
+
+export interface CalendarEventWithSource extends GoogleCalendarEvent {
+  calendarId: string;
+  calendarSummary: string;
+  calendarColor?: string;
 }
