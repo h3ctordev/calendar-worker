@@ -13,5 +13,7 @@ GOOGLE_REDIRECT_URI = "https://calendar-worker.hectordev.workers.dev/auth/callba
 binding = "USERS_KV"
 id = "e3ecaa4981484330aacdc8d1a038a8c9"
 
+
+
 [observability]
 enabled = true

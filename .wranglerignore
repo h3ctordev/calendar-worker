@@ -1,0 +1,72 @@
+# Documentation and guides
+docs/
+*.md
+README.md
+CHANGELOG.md
+
+# Agent configurations
+.agents/
+
+# Development and testing files
+.dev.vars
+.dev.vars.example
+*.test.ts
+*.spec.ts
+**/*.test.*
+**/*.spec.*
+
+# Bruno API testing collection
+**/*.bru
+
+# Development tools and configs
+.vscode/
+.idea/
+.editorconfig
+.eslintrc.*
+.prettierrc.*
+nodemon.json
+
+# Package management
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts (if any)
+dist/
+build/
+out/
+
+# Environment files
+.env
+.env.*
+*.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Temporary folders
+tmp/
+temp/
