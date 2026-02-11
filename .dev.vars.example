@@ -2,7 +2,7 @@
 # Nunca compartas este archivo ni lo incluyas en commits.
 GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="replace-with-google-client-secret"
-GOOGLE_REDIRECT_URI="https://your-worker.example.com/auth/callback"
+GOOGLE_REDIRECT_URI="https://calendar-worker.hectordev.workers.dev/auth/callback"
 
 ACCOUNT_ID = "your-account-id"
 KV_NAMESPACE = "USERS_KV"

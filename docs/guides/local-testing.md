@@ -9,7 +9,7 @@ Esta guía describe cómo levantar Calendar Worker en un entorno local utilizand
 1. **Cuenta de Cloudflare** habilitada para Workers y KV.
 2. **Cuenta de Google Cloud** con un proyecto que tenga:
    - Pantalla de consentimiento publicada (modo interno o externo según aplique).
-   - Cliente OAuth 2.0 de tipo *Web application* con `redirect_uri` apuntando a `https://<tu-worker>.workers.dev/auth/callback` (puedes crear un valor temporal y luego ajustarlo).
+   - Cliente OAuth 2.0 de tipo *Web application* con `redirect_uri` apuntando a `https://calendar-worker.hectordev.workers.dev/auth/callback` (puedes crear un valor temporal y luego ajustarlo).
 3. **Node.js 18+** y **pnpm** instalados localmente (puedes habilitar Corepack con `corepack enable`). Verifica con:
    ```bash
    node --version
@@ -40,7 +40,7 @@ Crea un archivo `.dev.vars` en la raíz del proyecto con el siguiente contenido:
 ```
 GOOGLE_CLIENT_ID="tu_client_id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="tu_client_secret"
-GOOGLE_REDIRECT_URI="https://<tu-worker>.workers.dev/auth/callback"
+GOOGLE_REDIRECT_URI="https://calendar-worker.hectordev.workers.dev/auth/callback"
 ```
 
 > `.dev.vars` es leído automáticamente por `wrangler dev` y no se commitea (está en `.gitignore`).

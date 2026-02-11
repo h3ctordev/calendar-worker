@@ -43,7 +43,7 @@ README.md         # Project usage guide
    ```
 
 2. **Create a Google OAuth client** (Web application):
-   - Authorized redirect URI: `https://<your-worker-domain>/auth/callback`
+   - Authorized redirect URI: `https://calendar-worker.hectordev.workers.dev/auth/callback`
    - Scope: `https://www.googleapis.com/auth/calendar`
    - Access type: `offline`
    - Prompt: `consent`
@@ -74,6 +74,12 @@ README.md         # Project usage guide
   ```shell
   pnpm deploy
   ```
+
+## Testing Tools
+
+- Consulta `docs/curl-examples.md` para ejemplos rápidos de `curl` contra cada endpoint (OAuth y calendario).
+- Usa la colección Bruno disponible en `docs/bruno/` con los entornos `local` y `production` para probar manualmente.
+- Mantén los secretos fuera de la colección y usa `.dev.vars`/`wrangler secret` según la guía `docs/guides/secrets-wrangler.md`.
 
 ## Endpoints
 

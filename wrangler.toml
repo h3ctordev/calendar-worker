@@ -9,7 +9,7 @@ account_id = "26ee46efc46cfaef25a75fbf7bdf1e61"
 [vars]
 GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
 GOOGLE_CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
-GOOGLE_REDIRECT_URI = "https://your-worker.example.com/auth/callback"
+GOOGLE_REDIRECT_URI = "https://calendar-worker.hectordev.workers.dev/auth/callback"
 
 [[kv_namespaces]]
 binding = "USERS_KV"

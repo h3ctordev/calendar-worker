@@ -9,7 +9,7 @@ Esta guía explica cómo desplegar Calendar Worker en Cloudflare partiendo de un
 1. **Cuenta de Cloudflare activa** con acceso a Workers y KV.
 2. **Proyecto de Google Cloud** con:
    - Pantalla de consentimiento aprobada.
-   - Cliente OAuth 2.0 (tipo Web) con `redirect_uri` apuntando a `https://<tu-subdominio>.workers.dev/auth/callback` o a tu dominio personalizado.
+   - Cliente OAuth 2.0 (tipo Web) con `redirect_uri` apuntando a `https://calendar-worker.hectordev.workers.dev/auth/callback` (o al dominio personalizado que elijas).
 3. **Navegador** para autenticarte durante la instalación.
 4. **Sistema operativo compatible** (Windows, macOS o Linux) con permisos para instalar software.
 
@@ -67,13 +67,13 @@ Edita `wrangler.toml` con los valores reales (para secretos sensibles usa el flu
 [vars]
 GOOGLE_CLIENT_ID = "tu_client_id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET = "tu_client_secret"
-GOOGLE_REDIRECT_URI = "https://tu-worker.workers.dev/auth/callback"
+GOOGLE_REDIRECT_URI = "https://calendar-worker.hectordev.workers.dev/auth/callback"
 ```
 
 ### 4.2 Namespace KV
 1. Crea el namespace:
    ```bash
-   pnpm dlx wrangler kv namespace create USERS_KV
+   pnpm dlx wrangler kv:namespace create USERS_KV
    ```
 2. Copia el `id` retornado y reemplaza `YOUR_KV_NAMESPACE_ID` en `wrangler.toml`:
    ```toml
@@ -114,7 +114,7 @@ Wrangler:
 - Construirá el bundle TypeScript.
 - Subirá el script a Cloudflare Workers.
 - Asociará el namespace `USERS_KV`.
-- Guardará la URL pública (por ejemplo, `https://calendar-worker.<tu-subdominio>.workers.dev`).
+- Guardará la URL pública (por ejemplo, `https://calendar-worker.hectordev.workers.dev`).
 
 ---
 

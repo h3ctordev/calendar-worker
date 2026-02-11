@@ -18,7 +18,7 @@ Inicia el flujo de autenticación OAuth 2.0 con Google Calendar para un usuario 
 ### Ejemplo de llamada
 
 ```
-GET https://calendar-worker.example.com/auth/google?user_id=alice-123
+GET https://calendar-worker.hectordev.workers.dev/auth/google?user_id=alice-123
 ```
 
 ## 3. Response

@@ -16,7 +16,7 @@ Devuelve los eventos del calendario primario de Google para el día actual del u
 ### Ejemplo
 
 ```
-GET https://calendar-worker.example.com/calendar/today
+GET https://calendar-worker.hectordev.workers.dev/calendar/today
 x-user-id: alice-123
 ```
 

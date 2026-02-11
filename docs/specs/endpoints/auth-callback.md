@@ -21,7 +21,7 @@ Completa el flujo OAuth 2.0 con Google. Recibe el `code` devuelto por Google, lo
 ### Ejemplo de llamada
 
 ```
-GET https://calendar-worker.example.com/auth/callback?code=4/0AX4Xf...&state=alice-123
+GET https://calendar-worker.hectordev.workers.dev/auth/callback?code=4/0AX4Xf...&state=alice-123
 ```
 
 ## 3. Response

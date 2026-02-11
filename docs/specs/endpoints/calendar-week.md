@@ -16,7 +16,7 @@ Entrega los eventos del calendario primario de Google correspondientes a la sema
 ### Ejemplo
 
 ```
-GET https://calendar-worker.example.com/calendar/week
+GET https://calendar-worker.hectordev.workers.dev/calendar/week
 x-user-id: alice-123
 ```
 
