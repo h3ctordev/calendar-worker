@@ -78,7 +78,7 @@ README.md         # Project usage guide
 ## Testing Tools
 
 - Consulta `docs/curl-examples.md` para ejemplos rápidos de `curl` contra cada endpoint (OAuth y calendario).
-- Usa la colección Bruno disponible en `docs/bruno/` con los entornos `local` y `production` para probar manualmente.
+- Usa la colección Bruno disponible en `docs/bruno/` (abre `collection.bru` desde Bruno y selecciona los entornos `local` o `production`) para probar manualmente.
 - Mantén los secretos fuera de la colección y usa `.dev.vars`/`wrangler secret` según la guía `docs/guides/secrets-wrangler.md`.
 
 ## Endpoints

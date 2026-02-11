@@ -1,0 +1,107 @@
+meta {
+  name: 02 - Iniciar Autenticación Google
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/auth/google
+  body: none
+  auth: none
+}
+
+params:query {
+  user_id: {{user_id}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+}
+
+script:post-response {
+  // Registrar información de la redirección
+  console.log("Status:", res.getStatus());
+  console.log("Location header:", res.getHeader("location"));
+  console.log("Request URL:", req.getUrl());
+
+  // Extraer URL de autorización si es una redirección
+  if (res.getStatus() === 302) {
+    const location = res.getHeader("location");
+    if (location) {
+      bru.setVar("google_auth_url", location);
+      console.log("URL de autorización guardada en variable 'google_auth_url'");
+    }
+  }
+}
+
+tests {
+  test("Status code is 302 (redirect)", function() {
+    expect(res.getStatus()).to.equal(302);
+  });
+
+  test("Has Location header for redirect", function() {
+    expect(res.getHeader("location")).to.not.be.empty;
+  });
+
+  test("Location header points to Google OAuth", function() {
+    const location = res.getHeader("location");
+    expect(location).to.contain("accounts.google.com");
+    expect(location).to.contain("oauth2/v2/auth");
+  });
+
+  test("OAuth URL has required parameters", function() {
+    const location = res.getHeader("location");
+    expect(location).to.contain("client_id=");
+    expect(location).to.contain("redirect_uri=");
+    expect(location).to.contain("response_type=code");
+    expect(location).to.contain("scope=");
+    expect(location).to.contain("access_type=offline");
+    expect(location).to.contain("prompt=consent");
+    expect(location).to.contain("state=");
+  });
+
+  test("OAuth scope includes calendar access", function() {
+    const location = res.getHeader("location");
+    expect(location).to.contain("auth%2Fcalendar");
+  });
+}
+
+docs {
+  # Iniciar Autenticación con Google
+
+  Este endpoint inicia el flujo de OAuth 2.0 con Google para obtener acceso al calendario del usuario.
+
+  ## Parámetros requeridos
+
+  - `user_id` (query parameter): Identificador único del usuario que será almacenado en KV
+
+  ## Respuesta esperada
+
+  - **Status**: 302 (Redirect)
+  - **Location header**: URL de autorización de Google OAuth
+
+  ## Flujo de autenticación
+
+  1. El usuario hace una request a este endpoint con su `user_id`
+  2. El servicio genera una URL de autorización de Google
+  3. El navegador es redirigido a Google para autorización
+  4. Después de autorizar, Google redirige al usuario al endpoint `/auth/callback`
+
+  ## Notas importantes
+
+  - El `user_id` se usa como `state` para verificación en el callback
+  - Se solicita `access_type=offline` para obtener refresh token
+  - Se usa `prompt=consent` para forzar el consent screen y garantizar refresh token
+  - El scope incluye acceso completo al calendario de Google
+
+  ## Variables generadas
+
+  - `google_auth_url`: URL completa de autorización de Google (para referencia)
+}

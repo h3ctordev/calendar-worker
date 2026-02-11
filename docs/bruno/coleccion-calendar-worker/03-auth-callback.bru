@@ -1,0 +1,137 @@
+meta {
+  name: 03 - Callback Autenticación Google
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/auth/callback
+  body: none
+  auth: none
+}
+
+params:query {
+  code: {{auth_code}}
+  state: {{user_id}}
+  user_id: {{user_id}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+script:pre-request {
+  // Verificar que auth_code esté definido
+  if (!bru.getVar("auth_code") || bru.getVar("auth_code").trim() === "") {
+    console.log("⚠️  IMPORTANTE: Este endpoint requiere un 'code' de autorización de Google");
+    console.log("⚠️  Sigue estos pasos:");
+    console.log("1. Ejecuta primero '02 - Iniciar Autenticación Google'");
+    console.log("2. Ve a la URL en 'google_auth_url' y autoriza la aplicación");
+    console.log("3. Copia el parámetro 'code' de la URL de callback");
+    console.log("4. Pégalo en la variable 'auth_code' de este entorno");
+
+    // Opcional: mostrar la URL de Google si está disponible
+    const googleUrl = bru.getVar("google_auth_url");
+    if (googleUrl) {
+      console.log("5. URL de Google: " + googleUrl);
+    }
+  }
+
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+}
+
+script:post-response {
+  console.log("Status:", res.getStatus());
+  console.log("Response body:", JSON.stringify(res.getBody(), null, 2));
+
+  // Si la autenticación fue exitosa, guardar información
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    if (body.user_id) {
+      console.log("✅ Autenticación exitosa para usuario:", body.user_id);
+      console.log("✅ Proveedor:", body.provider);
+    }
+  }
+}
+
+tests {
+  test("Status code is 200 (success)", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has success message", function() {
+    const body = res.getBody();
+    expect(body.message).to.contain("successfully");
+  });
+
+  test("Response has user_id", function() {
+    const body = res.getBody();
+    expect(body.user_id).to.equal(bru.getEnvVar("user_id"));
+  });
+
+  test("Response has provider", function() {
+    const body = res.getBody();
+    expect(body.provider).to.equal("google");
+  });
+}
+
+docs {
+  # Callback de Autenticación Google
+
+  Este endpoint maneja el callback después de que el usuario autoriza la aplicación en Google.
+  Google redirige al usuario aquí con un código de autorización que se intercambia por tokens.
+
+  ## Parámetros requeridos
+
+  - `code` (query parameter): Código de autorización proporcionado por Google
+  - `state` (query parameter): Debe coincidir con el `user_id` original
+  - `user_id` (query parameter): Identificador del usuario (opcional, se puede usar el state)
+
+  ## Respuesta esperada
+
+  ```json
+  {
+    "message": "Google account linked successfully.",
+    "user_id": "test-user-123",
+    "provider": "google"
+  }
+  ```
+
+  ## Flujo completo
+
+  1. Usuario ejecuta `/auth/google?user_id=test-user-123`
+  2. Es redirigido a Google para autorización
+  3. Después de autorizar, Google redirige a este endpoint con `code` y `state`
+  4. El servicio intercambia el `code` por un refresh token
+  5. El refresh token se guarda en Cloudflare KV
+  6. Se devuelve confirmación de éxito
+
+  ## Variables requeridas
+
+  - `auth_code`: El código de autorización de Google (se debe copiar manualmente de la URL)
+  - `user_id`: Identificador del usuario (definido en variables de entorno)
+
+  ## Errores comunes
+
+  - **400**: Código faltante o inválido
+  - **400**: user_id faltante
+  - **400**: Google no devolvió refresh_token (problema de configuración OAuth)
+
+  ## Testing manual
+
+  Para probar este endpoint:
+
+  1. Ejecuta "02 - Iniciar Autenticación Google"
+  2. Ve a la URL de Google mostrada en la consola
+  3. Autoriza la aplicación
+  4. Copia el parámetro `code` de la URL de callback
+  5. Pégalo en la variable `auth_code` de Bruno
+  6. Ejecuta este request
+}

@@ -1,0 +1,158 @@
+meta {
+  name: 04 - Eventos de Hoy
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/calendar/today
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user-id: {{user_id}}
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+
+  console.log("Obteniendo eventos de hoy para usuario:", bru.getEnvVar("user_id"));
+}
+
+script:post-response {
+  console.log("Status:", res.getStatus());
+
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    console.log("Timeframe:", body.timeframe);
+    console.log("Window:", body.window);
+    console.log("Timezone:", body.timezone);
+    console.log("Eventos encontrados:", body.events ? body.events.length : 0);
+
+    if (body.events && body.events.length > 0) {
+      console.log("Primer evento:", body.events[0].summary);
+    }
+  } else {
+    console.log("Error response:", JSON.stringify(res.getBody(), null, 2));
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has required fields", function() {
+    const body = res.getBody();
+    expect(body.timeframe).to.exist;
+    expect(body.window).to.exist;
+    expect(body.user_id).to.exist;
+    expect(body.timezone).to.exist;
+    expect(body.events).to.exist;
+  });
+
+  test("Timeframe is 'today'", function() {
+    const body = res.getBody();
+    expect(body.timeframe).to.equal("today");
+  });
+
+  test("User ID matches request", function() {
+    const body = res.getBody();
+    expect(body.user_id).to.equal(bru.getEnvVar("user_id"));
+  });
+
+  test("Events is an array", function() {
+    const body = res.getBody();
+    expect(body.events).to.be.an("array");
+  });
+
+  test("Timezone is valid", function() {
+    const body = res.getBody();
+    expect(body.timezone).to.be.a("string");
+    expect(body.timezone.length).to.be.greaterThan(0);
+  });
+
+  test("Window has start and end", function() {
+    const body = res.getBody();
+    expect(body.window).to.have.property("start");
+    expect(body.window).to.have.property("end");
+  });
+}
+
+docs {
+  # Obtener Eventos de Hoy
+
+  Este endpoint devuelve todos los eventos del calendario de Google para el día actual del usuario autenticado.
+
+  ## Autenticación requerida
+
+  - `x-user-id` header: Identificador del usuario que debe existir en Cloudflare KV
+
+  ## Respuesta esperada
+
+  ```json
+  {
+    "timeframe": "today",
+    "window": {
+      "start": "2024-01-15T00:00:00-03:00",
+      "end": "2024-01-15T23:59:59-03:00"
+    },
+    "user_id": "test-user-123",
+    "timezone": "America/Santiago",
+    "events": [
+      {
+        "id": "evento123",
+        "summary": "Reunión importante",
+        "start": {
+          "dateTime": "2024-01-15T09:00:00-03:00",
+          "timeZone": "America/Santiago"
+        },
+        "end": {
+          "dateTime": "2024-01-15T10:00:00-03:00",
+          "timeZone": "America/Santiago"
+        }
+      }
+    ]
+  }
+  ```
+
+  ## Campos de respuesta
+
+  - `timeframe`: Siempre "today" para este endpoint
+  - `window`: Ventana de tiempo consultada (inicio y fin del día)
+  - `user_id`: ID del usuario consultado
+  - `timezone`: Zona horaria del usuario (por defecto America/Santiago)
+  - `events`: Array de eventos del calendario de Google
+
+  ## Estructura de eventos
+
+  Cada evento incluye:
+  - `id`: Identificador único del evento en Google Calendar
+  - `summary`: Título/resumen del evento
+  - `start`/`end`: Fechas y horas de inicio/fin con zona horaria
+  - Otros campos opcionales según la configuración del evento
+
+  ## Errores comunes
+
+  - **401**: Header `x-user-id` faltante
+  - **404**: Usuario no encontrado en KV (no autenticado previamente)
+  - **500**: Error al consultar Google Calendar API
+
+  ## Prerequisitos
+
+  El usuario debe haber completado exitosamente el flujo de autenticación OAuth:
+  1. Ejecutar "02 - Iniciar Autenticación Google"
+  2. Autorizar en Google
+  3. Completar "03 - Callback Autenticación Google"
+
+  Solo después de estos pasos el usuario tendrá tokens válidos en KV para hacer consultas al calendario.
+}

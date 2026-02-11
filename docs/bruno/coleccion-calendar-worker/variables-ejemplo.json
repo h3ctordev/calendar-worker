@@ -1,0 +1,178 @@
+{
+  "version": "1",
+  "name": "Variables de Ejemplo - Calendar Worker",
+  "description": "Configuración de variables de ejemplo para testing de la colección Calendar Worker",
+  "environments": {
+    "local-desarrollo": {
+      "name": "Local con datos de ejemplo",
+      "variables": {
+        "base_url": "http://localhost:8787",
+        "user_id": "dev-user-001",
+        "debug_requests": "true",
+        "debug_oauth": "true",
+        "debug_calendar": "false"
+      }
+    },
+    "staging": {
+      "name": "Staging con usuarios de prueba",
+      "variables": {
+        "base_url": "https://calendar-worker-staging.workers.dev",
+        "user_id": "staging-user-001",
+        "debug_requests": "false",
+        "debug_oauth": "true",
+        "debug_calendar": "false"
+      }
+    }
+  },
+  "variables_globales": {
+    "descripcion": "Variables que se pueden usar en cualquier request de la colección",
+    "variables": {
+      "auth_code": {
+        "valor": "",
+        "descripcion": "Código de autorización de Google (se copia manualmente del callback)",
+        "tipo": "string",
+        "sensible": true,
+        "ejemplo": "4/0AdQt8qi..."
+      },
+      "google_auth_url": {
+        "valor": "",
+        "descripcion": "URL de autorización de Google (generada automáticamente)",
+        "tipo": "string",
+        "sensible": false,
+        "ejemplo": "https://accounts.google.com/oauth2/v2/auth?..."
+      },
+      "error_type": {
+        "valor": "missing_header",
+        "descripcion": "Tipo de error para testing (usado en 06-test-errores)",
+        "tipo": "enum",
+        "sensible": false,
+        "opciones": [
+          "missing_header",
+          "invalid_user",
+          "empty_user",
+          "malformed_user"
+        ]
+      },
+      "test_user_authenticated": {
+        "valor": "",
+        "descripcion": "ID de usuario ya autenticado para testing rápido de endpoints de calendar",
+        "tipo": "string",
+        "sensible": false,
+        "ejemplo": "user-already-auth-123"
+      }
+    }
+  },
+  "configuracion_recomendada": {
+    "timeout_requests": 30000,
+    "seguir_redirects": true,
+    "verificar_ssl": true,
+    "encoding": "utf-8"
+  },
+  "flujos_de_testing": {
+    "completo": {
+      "descripcion": "Testing completo desde cero",
+      "pasos": [
+        "1. Ejecutar 01-info-servicio.bru",
+        "2. Configurar user_id único en variables",
+        "3. Ejecutar 02-auth-google.bru",
+        "4. Seguir URL de google_auth_url y autorizar",
+        "5. Copiar 'code' del callback a variable auth_code",
+        "6. Ejecutar 03-auth-callback.bru",
+        "7. Ejecutar 04-calendar-today.bru",
+        "8. Ejecutar 05-calendar-week.bru"
+      ]
+    },
+    "usuario_existente": {
+      "descripcion": "Testing con usuario ya autenticado",
+      "pasos": [
+        "1. Configurar test_user_authenticated con ID válido",
+        "2. Usar ese ID como user_id en headers",
+        "3. Ejecutar directamente 04-calendar-today.bru",
+        "4. Ejecutar 05-calendar-week.bru"
+      ]
+    },
+    "testing_errores": {
+      "descripcion": "Verificación de manejo de errores",
+      "pasos": [
+        "1. Configurar error_type = 'missing_header'",
+        "2. Ejecutar 06-test-errores.bru",
+        "3. Cambiar error_type = 'invalid_user'",
+        "4. Ejecutar 06-test-errores.bru",
+        "5. Repetir para otros tipos de error"
+      ]
+    }
+  },
+  "notas_importantes": {
+    "seguridad": [
+      "Nunca commitear auth_code en repositorio",
+      "Usar user_id únicos y no predecibles en producción",
+      "Variables sensibles deben marcarse como tal en Bruno",
+      "Revisar que no se filtren tokens en logs"
+    ],
+    "debugging": [
+      "Usar debug_requests=true para ver detalles de HTTP",
+      "debug_oauth=true muestra información del flujo OAuth",
+      "debug_calendar=true para análisis detallado de eventos",
+      "Revisar consola de Bruno para logs automáticos"
+    ],
+    "performance": [
+      "Los endpoints de calendar pueden ser lentos en primera ejecución",
+      "Google Calendar API tiene rate limits",
+      "Usar timeout apropiado para requests largos",
+      "Cache de Bruno puede interferir con testing de errores"
+    ]
+  },
+  "variables_por_endpoint": {
+    "01-info-servicio": {
+      "requeridas": [],
+      "opcionales": ["debug_requests"]
+    },
+    "02-auth-google": {
+      "requeridas": ["user_id"],
+      "opcionales": ["debug_oauth"],
+      "genera": ["google_auth_url"]
+    },
+    "03-auth-callback": {
+      "requeridas": ["auth_code", "user_id"],
+      "opcionales": ["debug_oauth"]
+    },
+    "04-calendar-today": {
+      "requeridas": ["user_id"],
+      "opcionales": ["debug_calendar", "debug_requests"]
+    },
+    "05-calendar-week": {
+      "requeridas": ["user_id"],
+      "opcionales": ["debug_calendar", "debug_requests"]
+    },
+    "06-test-errores": {
+      "requeridas": [],
+      "opcionales": ["error_type", "debug_requests"]
+    }
+  },
+  "ejemplos_configuracion": {
+    "desarrollo_local": {
+      "base_url": "http://localhost:8787",
+      "user_id": "local-dev-user",
+      "auth_code": "",
+      "error_type": "missing_header",
+      "debug_requests": "true",
+      "debug_oauth": "true"
+    },
+    "testing_staging": {
+      "base_url": "https://tu-worker-staging.workers.dev",
+      "user_id": "staging-test-001",
+      "auth_code": "",
+      "error_type": "missing_header",
+      "debug_requests": "false",
+      "debug_oauth": "false"
+    },
+    "testing_produccion": {
+      "base_url": "https://tu-worker-prod.workers.dev",
+      "user_id": "",
+      "auth_code": "",
+      "error_type": "missing_header",
+      "debug_requests": "false",
+      "debug_oauth": "false"
+    }
+  }
+}

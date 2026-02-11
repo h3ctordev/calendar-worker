@@ -1,0 +1,237 @@
+meta {
+  name: 06 - Test de Errores Comunes
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/calendar/today
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+script:pre-request {
+  // Este script permite alternar entre diferentes tipos de error para testing
+  const errorType = bru.getVar("error_type") || "missing_header";
+
+  console.log("Testing error type:", errorType);
+
+  switch(errorType) {
+    case "missing_header":
+      console.log("❌ Test: Header x-user-id faltante");
+      // No agregar header x-user-id
+      break;
+
+    case "invalid_user":
+      console.log("❌ Test: Usuario inválido/no encontrado");
+      req.setHeader("x-user-id", "usuario-inexistente-123");
+      break;
+
+    case "empty_user":
+      console.log("❌ Test: Header x-user-id vacío");
+      req.setHeader("x-user-id", "");
+      break;
+
+    case "malformed_user":
+      console.log("❌ Test: Header x-user-id malformado");
+      req.setHeader("x-user-id", "  ");
+      break;
+
+    default:
+      console.log("❌ Test: Header x-user-id faltante (default)");
+      break;
+  }
+}
+
+script:post-response {
+  const errorType = bru.getVar("error_type") || "missing_header";
+
+  console.log("Error type tested:", errorType);
+  console.log("Status:", res.getStatus());
+  console.log("Response:", JSON.stringify(res.getBody(), null, 2));
+
+  // Análisis específico por tipo de error
+  const body = res.getBody();
+
+  if (res.getStatus() === 401) {
+    console.log("✅ Error 401 capturado correctamente");
+    if (body.error) {
+      console.log("✅ Mensaje de error incluido:", body.error);
+    }
+  }
+
+  if (res.getStatus() === 404) {
+    console.log("✅ Error 404 capturado correctamente");
+    if (body.user_id) {
+      console.log("✅ User ID incluido en respuesta de error:", body.user_id);
+    }
+  }
+
+  // Verificar que no se filtren datos sensibles
+  const responseText = JSON.stringify(body);
+  if (responseText.includes("refresh_token") ||
+      responseText.includes("client_secret") ||
+      responseText.includes("access_token")) {
+    console.log("🚨 ADVERTENCIA: Posible filtración de datos sensibles");
+  } else {
+    console.log("✅ No se detectaron datos sensibles en la respuesta");
+  }
+}
+
+tests {
+  test("Error responses have proper structure", function() {
+    const body = res.getBody();
+    expect(body).to.have.property("error");
+  });
+
+  test("Error responses are JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("No sensitive data in error response", function() {
+    const responseText = JSON.stringify(res.getBody());
+    expect(responseText).to.not.contain("refresh_token");
+    expect(responseText).to.not.contain("client_secret");
+    expect(responseText).to.not.contain("access_token");
+  });
+
+  test("Missing header returns 401", function() {
+    const errorType = bru.getVar("error_type") || "missing_header";
+    if (errorType === "missing_header") {
+      expect(res.getStatus()).to.equal(401);
+    }
+  });
+
+  test("Invalid user returns 404", function() {
+    const errorType = bru.getVar("error_type");
+    if (errorType === "invalid_user") {
+      expect(res.getStatus()).to.equal(404);
+    }
+  });
+
+  test("Empty user header returns 401", function() {
+    const errorType = bru.getVar("error_type");
+    if (errorType === "empty_user" || errorType === "malformed_user") {
+      expect(res.getStatus()).to.equal(401);
+    }
+  });
+}
+
+docs {
+  # Test de Errores Comunes
+
+  Este endpoint especializado permite probar diferentes escenarios de error del sistema para verificar el manejo correcto de casos edge y la seguridad de las respuestas de error.
+
+  ## Variables de control
+
+  Configura la variable `error_type` para probar diferentes escenarios:
+
+  - `missing_header`: Sin header x-user-id (default)
+  - `invalid_user`: Header con usuario que no existe en KV
+  - `empty_user`: Header x-user-id vacío
+  - `malformed_user`: Header x-user-id solo con espacios
+
+  ## Escenarios de error testing
+
+  ### 1. Header faltante (401)
+  ```javascript
+  bru.setVar("error_type", "missing_header");
+  ```
+  **Respuesta esperada:**
+  ```json
+  {
+    "error": "Missing x-user-id header."
+  }
+  ```
+
+  ### 2. Usuario inválido (404)
+  ```javascript
+  bru.setVar("error_type", "invalid_user");
+  ```
+  **Respuesta esperada:**
+  ```json
+  {
+    "error": "User not found in KV.",
+    "user_id": "usuario-inexistente-123"
+  }
+  ```
+
+  ### 3. Header vacío (401)
+  ```javascript
+  bru.setVar("error_type", "empty_user");
+  ```
+  **Respuesta esperada:**
+  ```json
+  {
+    "error": "Missing x-user-id header."
+  }
+  ```
+
+  ### 4. Header malformado (401)
+  ```javascript
+  bru.setVar("error_type", "malformed_user");
+  ```
+  **Respuesta esperada:**
+  ```json
+  {
+    "error": "Missing x-user-id header."
+  }
+  ```
+
+  ## Verificaciones de seguridad
+
+  El script automáticamente verifica que las respuestas de error NO contengan:
+
+  - `refresh_token`: Tokens de actualización de OAuth
+  - `client_secret`: Secretos de aplicación OAuth
+  - `access_token`: Tokens de acceso temporales
+
+  ## Tests automatizados
+
+  - **Estructura**: Todas las respuestas de error tienen campo `error`
+  - **Formato**: Respuestas son JSON válido
+  - **Seguridad**: No hay filtración de datos sensibles
+  - **Status codes**: Códigos HTTP correctos según el tipo de error
+
+  ## Casos de uso
+
+  - **Testing de seguridad**: Verificar que no se filtren datos sensibles
+  - **Validación de API**: Confirmar códigos de estado HTTP apropiados
+  - **Debugging**: Verificar mensajes de error útiles para desarrolladores
+  - **Documentación**: Generar ejemplos de respuestas de error
+
+  ## Otros endpoints para error testing
+
+  Este mismo enfoque se puede aplicar a otros endpoints:
+
+  - `GET /calendar/week` (cambiar URL en el request)
+  - `GET /auth/google` (sin user_id parameter)
+  - `GET /auth/callback` (sin code parameter)
+
+  ## Ejemplo de uso secuencial
+
+  ```javascript
+  // Test 1: Header faltante
+  bru.setVar("error_type", "missing_header");
+  // Ejecutar request -> Debería devolver 401
+
+  // Test 2: Usuario inválido
+  bru.setVar("error_type", "invalid_user");
+  // Ejecutar request -> Debería devolver 404
+
+  // Test 3: Header vacío
+  bru.setVar("error_type", "empty_user");
+  // Ejecutar request -> Debería devolver 401
+  ```
+
+  ## Notas importantes
+
+  - Los mensajes de error deben ser informativos pero no revelar detalles internos
+  - Los códigos de estado HTTP deben seguir estándares REST
+  - Las respuestas de error deben mantener formato JSON consistente
+  - Nunca se deben filtrar credenciales o tokens en respuestas de error
+}

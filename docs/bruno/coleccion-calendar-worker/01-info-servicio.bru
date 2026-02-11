@@ -1,0 +1,62 @@
+meta {
+  name: 01 - Información del Servicio
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has service name", function() {
+    const body = res.getBody();
+    expect(body.service).to.contain("OpenClaw");
+    expect(body.service).to.contain("Google Calendar");
+  });
+
+  test("Response has endpoints list", function() {
+    const body = res.getBody();
+    expect(body.endpoints).to.be.an("array");
+    expect(body.endpoints.length).to.be.greaterThan(0);
+  });
+}
+
+docs {
+  # Información del Servicio
+
+  Este endpoint proporciona información básica sobre el servicio Calendar Worker, incluyendo:
+
+  - Nombre del servicio
+  - Lista de endpoints disponibles
+  - Información de autenticación requerida
+
+  ## Respuesta esperada
+
+  ```json
+  {
+    "service": "OpenClaw ↔ Google Calendar bridge",
+    "endpoints": [
+      "GET /auth/google",
+      "GET /auth/callback",
+      "GET /calendar/today",
+      "GET /calendar/week"
+    ],
+    "authentication": "Provide x-user-id header for calendar endpoints."
+  }
+  ```
+}
