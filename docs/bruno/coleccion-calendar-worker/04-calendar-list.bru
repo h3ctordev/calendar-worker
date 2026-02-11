@@ -1,0 +1,246 @@
+meta {
+  name: 04 - Lista de Calendarios
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{base_url}}/calendar/list
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user-id: {{user_id}}
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+
+  console.log("Obteniendo lista de calendarios para usuario:", bru.getEnvVar("user_id"));
+}
+
+script:post-response {
+  console.log("Status:", res.getStatus());
+
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    console.log("Usuario:", body.user_id);
+    console.log("Timezone:", body.timezone);
+    console.log("Total calendarios:", body.total_calendars);
+
+    if (body.calendars && body.calendars.length > 0) {
+      console.log("\nCalendarios encontrados:");
+      body.calendars.forEach((cal, index) => {
+        console.log(`${index + 1}. ${cal.summary} (${cal.id})`);
+        console.log(`   - Acceso: ${cal.access_role}`);
+        console.log(`   - Principal: ${cal.primary ? 'Sí' : 'No'}`);
+        console.log(`   - Seleccionado: ${cal.selected ? 'Sí' : 'No'}`);
+        if (cal.color && cal.color.background) {
+          console.log(`   - Color: ${cal.color.background}`);
+        }
+      });
+    }
+
+    // Guardar información de calendarios para usar en otros requests
+    bru.setVar("total_calendars", body.total_calendars);
+    if (body.calendars && body.calendars.length > 0) {
+      bru.setVar("primary_calendar_id", body.calendars.find(c => c.primary)?.id || "primary");
+    }
+  } else {
+    console.log("Error response:", JSON.stringify(res.getBody(), null, 2));
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has required fields", function() {
+    const body = res.getBody();
+    expect(body.user_id).to.exist;
+    expect(body.timezone).to.exist;
+    expect(body.total_calendars).to.exist;
+    expect(body.calendars).to.exist;
+  });
+
+  test("User ID matches request", function() {
+    const body = res.getBody();
+    expect(body.user_id).to.equal(bru.getEnvVar("user_id"));
+  });
+
+  test("Total calendars is a number", function() {
+    const body = res.getBody();
+    expect(body.total_calendars).to.be.a("number");
+    expect(body.total_calendars).to.be.greaterThanOrEqual(0);
+  });
+
+  test("Calendars is an array", function() {
+    const body = res.getBody();
+    expect(body.calendars).to.be.an("array");
+  });
+
+  test("Calendar count matches total", function() {
+    const body = res.getBody();
+    expect(body.calendars.length).to.equal(body.total_calendars);
+  });
+
+  test("Each calendar has required fields", function() {
+    const body = res.getBody();
+    if (body.calendars.length > 0) {
+      body.calendars.forEach((calendar, index) => {
+        expect(calendar.id, `Calendar ${index} missing id`).to.exist;
+        expect(calendar.summary, `Calendar ${index} missing summary`).to.exist;
+        expect(calendar.access_role, `Calendar ${index} missing access_role`).to.exist;
+        expect(calendar.primary, `Calendar ${index} missing primary`).to.exist;
+      });
+    }
+  });
+
+  test("Has at least one primary calendar", function() {
+    const body = res.getBody();
+    if (body.calendars.length > 0) {
+      const primaryCalendar = body.calendars.find(cal => cal.primary === true);
+      expect(primaryCalendar, "Should have one primary calendar").to.exist;
+    }
+  });
+
+  test("Access roles are valid", function() {
+    const body = res.getBody();
+    const validRoles = ["owner", "writer", "reader", "freeBusyReader"];
+
+    body.calendars.forEach((calendar, index) => {
+      expect(validRoles, `Calendar ${index} has invalid access_role: ${calendar.access_role}`)
+        .to.include(calendar.access_role);
+    });
+  });
+
+  test("Timezone is valid", function() {
+    const body = res.getBody();
+    expect(body.timezone).to.be.a("string");
+    expect(body.timezone.length).to.be.greaterThan(0);
+  });
+}
+
+docs {
+  # Lista de Calendarios Disponibles
+
+  Este endpoint devuelve todos los calendarios accesibles para el usuario autenticado, incluyendo calendarios principales, secundarios, compartidos y suscritos.
+
+  ## Autenticación requerida
+
+  - `x-user-id` header: Identificador del usuario que debe existir en Cloudflare KV
+
+  ## Respuesta esperada
+
+  ```json
+  {
+    "user_id": "test-user-123",
+    "timezone": "America/Santiago",
+    "total_calendars": 3,
+    "calendars": [
+      {
+        "id": "primary",
+        "summary": "usuario@example.com",
+        "description": null,
+        "timezone": "America/Santiago",
+        "access_role": "owner",
+        "primary": true,
+        "color": {
+          "background": "#9fc6e7",
+          "foreground": "#000000"
+        },
+        "selected": true
+      },
+      {
+        "id": "team@group.calendar.google.com",
+        "summary": "Calendario del Equipo",
+        "description": "Eventos del equipo de desarrollo",
+        "timezone": "America/Santiago",
+        "access_role": "writer",
+        "primary": false,
+        "color": {
+          "background": "#7986cb",
+          "foreground": "#ffffff"
+        },
+        "selected": true
+      },
+      {
+        "id": "holidays@group.calendar.google.com",
+        "summary": "Feriados en Chile",
+        "description": null,
+        "timezone": "America/Santiago",
+        "access_role": "reader",
+        "primary": false,
+        "color": {
+          "background": "#0d7377",
+          "foreground": "#ffffff"
+        },
+        "selected": false
+      }
+    ]
+  }
+  ```
+
+  ## Campos de respuesta
+
+  - `user_id`: ID del usuario consultado
+  - `timezone`: Zona horaria del usuario (por defecto America/Santiago)
+  - `total_calendars`: Número total de calendarios accesibles
+  - `calendars`: Array de calendarios disponibles
+
+  ## Estructura de calendarios
+
+  Cada calendario incluye:
+  - `id`: ID único del calendario en Google
+  - `summary`: Nombre/título del calendario
+  - `description`: Descripción opcional del calendario
+  - `timezone`: Zona horaria específica del calendario
+  - `access_role`: Nivel de acceso del usuario
+    - `owner`: Propietario del calendario
+    - `writer`: Puede crear/editar eventos
+    - `reader`: Solo lectura
+    - `freeBusyReader`: Solo información de disponibilidad
+  - `primary`: Indica si es el calendario principal del usuario
+  - `color`: Colores del calendario
+    - `background`: Color de fondo (hex)
+    - `foreground`: Color de texto (hex)
+  - `selected`: Si está seleccionado por defecto en Google Calendar
+
+  ## Casos de uso
+
+  1. **Listar calendarios disponibles**: Ver todos los calendarios antes de consultar eventos
+  2. **Identificar permisos**: Filtrar calendarios según nivel de acceso
+  3. **Información visual**: Usar colores para interfaces coherentes
+  4. **Detectar calendarios compartidos**: Identificar calendarios compartidos o suscritos
+
+  ## Errores comunes
+
+  - **401**: Header `x-user-id` faltante
+  - **404**: Usuario no encontrado en KV (no autenticado previamente)
+  - **500**: Error al consultar Google Calendar API
+
+  ## Prerequisitos
+
+  El usuario debe haber completado exitosamente el flujo de autenticación OAuth:
+  1. Ejecutar "02 - Iniciar Autenticación Google"
+  2. Autorizar en Google
+  3. Completar "03 - Callback Autenticación Google"
+
+  ## Notas técnicas
+
+  - Solo se incluyen calendarios con acceso `reader` o superior
+  - Los calendarios ocultos se incluyen pero con `selected: false`
+  - El campo `primary` solo es `true` para el calendario principal
+  - La zona horaria puede variar entre calendarios
+  - Este endpoint no devuelve eventos, solo metadatos de calendarios
+}

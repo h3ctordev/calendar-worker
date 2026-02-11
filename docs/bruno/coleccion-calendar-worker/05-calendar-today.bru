@@ -1,0 +1,314 @@
+meta {
+  name: 05 - Eventos de Hoy (Multi-Calendario)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/calendar/today
+  body: none
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user-id: {{user_id}}
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+
+  console.log("Obteniendo eventos de hoy para usuario:", bru.getEnvVar("user_id"));
+}
+
+script:post-response {
+  console.log("Status:", res.getStatus());
+
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    console.log("Timeframe:", body.timeframe);
+    console.log("Window:", body.window);
+    console.log("Timezone:", body.timezone);
+    console.log("Total calendarios:", body.total_calendars);
+    console.log("Total eventos:", body.total_events);
+
+    if (body.calendars && body.calendars.length > 0) {
+      console.log("\nCalendarios consultados:");
+      body.calendars.forEach((cal, index) => {
+        console.log(`${index + 1}. ${cal.summary} (${cal.access_role})`);
+      });
+    }
+
+    if (body.events && body.events.length > 0) {
+      console.log(`\nPrimeros eventos encontrados:`);
+      body.events.slice(0, 3).forEach((event, index) => {
+        console.log(`${index + 1}. ${event.summary} [${event.calendar_name}]`);
+      });
+    }
+
+    // Guardar estadísticas para otros requests
+    bru.setVar("last_total_calendars", body.total_calendars);
+    bru.setVar("last_total_events", body.total_events);
+  } else {
+    console.log("Error response:", JSON.stringify(res.getBody(), null, 2));
+  }
+}
+
+tests {
+  test("Status code is 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has required fields", function() {
+    const body = res.getBody();
+    expect(body.timeframe).to.exist;
+    expect(body.window).to.exist;
+    expect(body.user_id).to.exist;
+    expect(body.timezone).to.exist;
+    expect(body.events).to.exist;
+    expect(body.total_calendars).to.exist;
+    expect(body.total_events).to.exist;
+    expect(body.calendars).to.exist;
+  });
+
+  test("Timeframe is 'today'", function() {
+    const body = res.getBody();
+    expect(body.timeframe).to.equal("today");
+  });
+
+  test("User ID matches request", function() {
+    const body = res.getBody();
+    expect(body.user_id).to.equal(bru.getEnvVar("user_id"));
+  });
+
+  test("Events is an array", function() {
+    const body = res.getBody();
+    expect(body.events).to.be.an("array");
+  });
+
+  test("Timezone is valid", function() {
+    const body = res.getBody();
+    expect(body.timezone).to.be.a("string");
+    expect(body.timezone.length).to.be.greaterThan(0);
+  });
+
+  test("Window has timeMin and timeMax", function() {
+    const body = res.getBody();
+    expect(body.window).to.have.property("timeMin");
+    expect(body.window).to.have.property("timeMax");
+  });
+
+  test("Multi-calendar fields are valid", function() {
+    const body = res.getBody();
+    expect(body.total_calendars).to.be.a("number");
+    expect(body.total_events).to.be.a("number");
+    expect(body.calendars).to.be.an("array");
+    expect(body.calendars.length).to.equal(body.total_calendars);
+    expect(body.events.length).to.equal(body.total_events);
+  });
+
+  test("Events have calendar information", function() {
+    const body = res.getBody();
+    if (body.events.length > 0) {
+      body.events.forEach((event, index) => {
+        expect(event.calendar_id, `Event ${index} missing calendar_id`).to.exist;
+        expect(event.calendar_name, `Event ${index} missing calendar_name`).to.exist;
+        expect(event.id, `Event ${index} missing id`).to.exist;
+      });
+    }
+  });
+
+  test("Calendars have required fields", function() {
+    const body = res.getBody();
+    if (body.calendars.length > 0) {
+      body.calendars.forEach((calendar, index) => {
+        expect(calendar.id, `Calendar ${index} missing id`).to.exist;
+        expect(calendar.summary, `Calendar ${index} missing summary`).to.exist;
+        expect(calendar.access_role, `Calendar ${index} missing access_role`).to.exist;
+        expect(calendar.primary, `Calendar ${index} missing primary`).to.exist;
+      });
+    }
+  });
+}
+
+docs {
+  # Obtener Eventos de Hoy (Multi-Calendario)
+
+  Este endpoint devuelve todos los eventos de **todos los calendarios accesibles** de Google para el día actual del usuario autenticado. Incluye calendarios principales, secundarios, compartidos y suscritos.
+
+  ## Autenticación requerida
+
+  - `x-user-id` header: Identificador del usuario que debe existir en Cloudflare KV
+
+  ## Respuesta esperada
+
+  ```json
+  {
+    "timeframe": "today",
+    "window": {
+      "label": "today",
+      "timeMin": "2024-01-15T03:00:00.000Z",
+      "timeMax": "2024-01-16T03:00:00.000Z"
+    },
+    "user_id": "test-user-123",
+    "timezone": "America/Santiago",
+    "total_calendars": 3,
+    "total_events": 2,
+    "calendars": [
+      {
+        "id": "primary",
+        "summary": "test@example.com",
+        "primary": true,
+        "access_role": "owner"
+      },
+      {
+        "id": "team@group.calendar.google.com",
+        "summary": "Calendario del Equipo",
+        "primary": false,
+        "access_role": "writer"
+      },
+      {
+        "id": "holidays@group.calendar.google.com",
+        "summary": "Feriados en Chile",
+        "primary": false,
+        "access_role": "reader"
+      }
+    ],
+    "events": [
+      {
+        "id": "evento123",
+        "calendar_id": "primary",
+        "calendar_name": "test@example.com",
+        "calendar_color": "#9fc6e7",
+        "summary": "Reunión importante",
+        "description": "Reunión con el equipo",
+        "location": "Sala de conferencias",
+        "html_link": "https://www.google.com/calendar/event?eid=...",
+        "status": "confirmed",
+        "start": {
+          "dateTime": "2024-01-15T09:00:00-03:00",
+          "timeZone": "America/Santiago"
+        },
+        "end": {
+          "dateTime": "2024-01-15T10:00:00-03:00",
+          "timeZone": "America/Santiago"
+        },
+        "attendees": [
+          { "email": "colleague@example.com", "responseStatus": "accepted" }
+        ],
+        "organizer": {
+          "email": "test@example.com",
+          "displayName": "Test User",
+          "self": true
+        },
+        "creator": {
+          "email": "test@example.com",
+          "displayName": "Test User",
+          "self": true
+        }
+      },
+      {
+        "id": "feriado456",
+        "calendar_id": "holidays@group.calendar.google.com",
+        "calendar_name": "Feriados en Chile",
+        "calendar_color": "#0d7377",
+        "summary": "Año Nuevo",
+        "description": null,
+        "location": null,
+        "html_link": "https://www.google.com/calendar/event?eid=...",
+        "status": "confirmed",
+        "start": {
+          "date": "2024-01-01"
+        },
+        "end": {
+          "date": "2024-01-02"
+        },
+        "attendees": null,
+        "organizer": {
+          "email": "holidays@group.calendar.google.com",
+          "displayName": "Feriados en Chile"
+        },
+        "creator": {
+          "email": "holidays@group.calendar.google.com",
+          "displayName": "Feriados en Chile"
+        }
+      }
+    ]
+  }
+  ```
+
+  ## Campos de respuesta
+
+  - `timeframe`: Siempre "today" para este endpoint
+  - `window`: Ventana de tiempo consultada (timeMin/timeMax en UTC)
+  - `user_id`: ID del usuario consultado
+  - `timezone`: Zona horaria del usuario (por defecto America/Santiago)
+  - `total_calendars`: Número total de calendarios consultados
+  - `total_events`: Número total de eventos encontrados
+  - `calendars`: Array con información de cada calendario consultado
+  - `events`: Array de eventos de todos los calendarios, ordenados por fecha/hora
+
+  ## Estructura de calendarios
+
+  Cada calendario incluye:
+  - `id`: ID único del calendario en Google
+  - `summary`: Nombre/título del calendario
+  - `primary`: Indica si es el calendario principal del usuario
+  - `access_role`: Nivel de acceso (`owner`, `writer`, `reader`)
+
+  ## Estructura de eventos
+
+  Cada evento incluye:
+  - `id`: Identificador único del evento en Google Calendar
+  - `calendar_id`: ID del calendario al que pertenece el evento
+  - `calendar_name`: Nombre legible del calendario origen
+  - `calendar_color`: Color de fondo del calendario (hex)
+  - `summary`: Título/resumen del evento
+  - `description`: Descripción del evento (puede ser null)
+  - `location`: Ubicación del evento (puede ser null)
+  - `html_link`: Enlace directo al evento en Google Calendar
+  - `status`: Estado del evento (`confirmed`, `tentative`, `cancelled`)
+  - `start`/`end`: Fechas y horas de inicio/fin con zona horaria
+  - `attendees`: Lista de asistentes (puede ser null)
+  - `organizer`: Organizador del evento
+  - `creator`: Creador del evento
+
+  ## Nuevas funcionalidades (v2.0.0)
+
+  - **Multi-calendario**: Consulta automática de todos los calendarios accesibles
+  - **Eventos enriquecidos**: Cada evento incluye información del calendario origen
+  - **Ordenamiento global**: Eventos ordenados por fecha/hora independientemente del calendario
+  - **Tolerancia a fallos**: Si un calendario falla, los otros continúan procesándose
+
+  ## Errores comunes
+
+  - **401**: Header `x-user-id` faltante
+  - **404**: Usuario no encontrado en KV (no autenticado previamente)
+  - **500**: Error al consultar Google Calendar API
+
+  ## Prerequisitos
+
+  El usuario debe haber completado exitosamente el flujo de autenticación OAuth:
+  1. Ejecutar "02 - Iniciar Autenticación Google"
+  2. Autorizar en Google
+  3. Completar "03 - Callback Autenticación Google"
+
+  ## Flujo recomendado
+
+  1. Ejecutar "04 - Lista de Calendarios" para ver calendarios disponibles
+  2. Ejecutar "05 - Eventos de Hoy" para obtener eventos de todos los calendarios
+  3. Filtrar eventos por `calendar_id` si se necesita información específica
+
+  ## Notas de rendimiento
+
+  - Las consultas a múltiples calendarios se hacen en paralelo
+  - Solo se incluyen calendarios con permisos `reader` o superior
+  - Si algún calendario individual falla, se registra en logs pero no interrumpe el proceso
+}

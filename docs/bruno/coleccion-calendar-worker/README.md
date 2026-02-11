@@ -9,8 +9,10 @@ La colección está organizada en orden secuencial para seguir el flujo completo
 1. **01-info-servicio.bru** - Información básica del servicio
 2. **02-auth-google.bru** - Iniciar autenticación con Google OAuth
 3. **03-auth-callback.bru** - Callback de autenticación
-4. **04-calendar-today.bru** - Obtener eventos de hoy
-5. **05-calendar-week.bru** - Obtener eventos de la semana
+4. **04-calendar-list.bru** - Listar todos los calendarios disponibles
+5. **05-calendar-today.bru** - Obtener eventos de hoy (multi-calendario)
+6. **06-calendar-week.bru** - Obtener eventos de la semana (multi-calendario)
+7. **07-test-errores.bru** - Testing de errores comunes
 
 ## Configuración de entornos
 
@@ -63,8 +65,10 @@ Ejecuta `03-auth-callback.bru` para intercambiar el código por tokens y guardar
 
 ### 5. Probar endpoints de calendario
 Una vez autenticado, puedes ejecutar:
-- `04-calendar-today.bru` para eventos de hoy
-- `05-calendar-week.bru` para eventos de la semana
+- `04-calendar-list.bru` para ver todos los calendarios disponibles
+- `05-calendar-today.bru` para eventos de hoy (multi-calendario)
+- `06-calendar-week.bru` para eventos de la semana (multi-calendario)
+- `07-test-errores.bru` para probar manejo de errores
 
 ## Configuración requerida
 
@@ -116,6 +120,24 @@ Cada request incluye scripts que:
 - **Causa**: Error del worker o API de Google
 - **Solución**: Revisar logs de Cloudflare y configuración OAuth
 
+## Nuevas funcionalidades (v2.0.0)
+
+### Multi-calendario
+- Todos los endpoints de calendario ahora consultan **múltiples calendarios**
+- Incluye calendarios principales, compartidos, suscritos y públicos
+- Cada evento incluye información del calendario origen (ID, nombre, color)
+- Procesamiento paralelo para mejor rendimiento
+
+### Logging verboso
+- Sistema completo de logs estructurados para debugging
+- Request IDs únicos para seguimiento completo
+- Redacción automática de información sensible
+
+### Eventos enriquecidos
+- Cada evento incluye `calendar_id`, `calendar_name`, `calendar_color`
+- Información completa de organizador, creador, asistentes
+- Enlaces directos a Google Calendar
+
 ## Variables de debugging
 
 Activa las siguientes variables en Bruno para debugging avanzado:
@@ -123,6 +145,7 @@ Activa las siguientes variables en Bruno para debugging avanzado:
 - `debug_requests`: Muestra detalles completos de requests
 - `debug_oauth`: Muestra información detallada del flujo OAuth
 - `debug_calendar`: Muestra datos extra de eventos de calendario
+- `error_type`: Controla tipo de error a probar en request de errores
 
 ## Notas de seguridad
 
@@ -130,6 +153,51 @@ Activa las siguientes variables en Bruno para debugging avanzado:
 - Usa `user_id` únicos y no predecibles en producción
 - Los refresh tokens se almacenan cifrados en KV
 - Las URLs de callback deben estar en whitelist de Google
+
+## Flujo recomendado para testing
+
+### Primera ejecución (setup completo)
+1. `01-info-servicio` - Verificar que el worker responde
+2. `02-auth-google` - Iniciar flujo OAuth 
+3. `03-auth-callback` - Completar autenticación (requiere intervención manual)
+4. `04-calendar-list` - Ver calendarios disponibles del usuario
+5. `05-calendar-today` - Eventos de hoy de todos los calendarios
+6. `06-calendar-week` - Eventos de la semana de todos los calendarios
+
+### Testing de regresión
+Una vez el usuario está autenticado, puedes ejecutar directamente:
+- `04-calendar-list` para verificar acceso a calendarios
+- `05-calendar-today` y `06-calendar-week` para datos actuales
+- `07-test-errores` para verificar manejo de errores
+
+## Interpretación de respuestas multi-calendario
+
+### Respuesta típica de eventos:
+```json
+{
+  "total_calendars": 3,
+  "total_events": 5,
+  "calendars": [
+    {"id": "primary", "summary": "usuario@example.com", "primary": true},
+    {"id": "shared123", "summary": "Equipo", "primary": false}
+  ],
+  "events": [
+    {
+      "calendar_id": "primary",
+      "calendar_name": "usuario@example.com",
+      "calendar_color": "#9fc6e7",
+      "summary": "Reunión"
+    }
+  ]
+}
+```
+
+### Análisis automático
+Los scripts post-response muestran automáticamente:
+- Número total de calendarios y eventos
+- Lista de calendarios consultados con sus permisos
+- Distribución de eventos por calendario
+- Eventos ordenados cronológicamente
 
 ## Estructura de archivos
 
@@ -140,8 +208,10 @@ docs/bruno/coleccion-calendar-worker/
 ├── 01-info-servicio.bru      # GET / - Información del servicio
 ├── 02-auth-google.bru        # GET /auth/google - Iniciar OAuth
 ├── 03-auth-callback.bru      # GET /auth/callback - Callback OAuth
-├── 04-calendar-today.bru     # GET /calendar/today - Eventos hoy
-└── 05-calendar-week.bru      # GET /calendar/week - Eventos semana
+├── 04-calendar-list.bru      # GET /calendar/list - Lista calendarios
+├── 05-calendar-today.bru     # GET /calendar/today - Eventos hoy (multi)
+├── 06-calendar-week.bru      # GET /calendar/week - Eventos semana (multi)
+└── 07-test-errores.bru       # Testing de manejo de errores
 ```
 
 Cada archivo `.bru` incluye documentación completa en la sección `docs` con ejemplos, casos de uso y troubleshooting específico.

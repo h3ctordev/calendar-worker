@@ -32,7 +32,13 @@ tests {
   test("Response has endpoints list", function() {
     const body = res.getBody();
     expect(body.endpoints).to.be.an("array");
-    expect(body.endpoints.length).to.be.greaterThan(0);
+    expect(body.endpoints.length).to.be.greaterThan(4); // Now includes /calendar/list
+  });
+
+  test("Response has new features", function() {
+    const body = res.getBody();
+    expect(body.features).to.be.an("array");
+    expect(body.features).to.contain("Multi-calendar support - fetches events from all accessible calendars");
   });
 }
 
@@ -53,10 +59,23 @@ docs {
     "endpoints": [
       "GET /auth/google",
       "GET /auth/callback",
+      "GET /calendar/list",
       "GET /calendar/today",
       "GET /calendar/week"
     ],
-    "authentication": "Provide x-user-id header for calendar endpoints."
+    "authentication": "Provide x-user-id header for calendar endpoints.",
+    "features": [
+      "Multi-calendar support - fetches events from all accessible calendars",
+      "Verbose logging for debugging",
+      "OAuth 2.0 with offline access"
+    ]
   }
   ```
+
+  ## Nuevas funcionalidades (v2.0.0)
+
+  - **Multi-calendario**: Todos los endpoints de calendario ahora consultan múltiples calendarios (principal, compartidos, suscritos)
+  - **Endpoint /calendar/list**: Lista todos los calendarios disponibles del usuario
+  - **Logging verboso**: Sistema completo de logs estructurados para debugging
+  - **Eventos enriquecidos**: Cada evento incluye información del calendario origen
 }

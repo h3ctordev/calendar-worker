@@ -2,7 +2,7 @@
 
 ## 1. Resumen
 
-Devuelve los eventos del calendario primario de Google para el día actual del usuario identificado por `x-user-id`. Utiliza el `refresh_token` almacenado en Cloudflare KV para obtener un `access_token` válido y consulta la API de Google Calendar respetando el huso horario definido para el usuario (por defecto `America/Santiago`).
+Devuelve los eventos de **todos los calendarios accesibles** de Google para el día actual del usuario identificado por `x-user-id`. Incluye calendarios principales, secundarios, compartidos y suscritos. Utiliza el `refresh_token` almacenado en Cloudflare KV para obtener un `access_token` válido y consulta la API de Google Calendar respetando el huso horario definido para el usuario (por defecto `America/Santiago`).
 
 ## 2. Request
 
@@ -34,13 +34,76 @@ x-user-id: alice-123
     },
     "user_id": "alice-123",
     "timezone": "America/Santiago",
+    "total_calendars": 3,
+    "total_events": 2,
+    "calendars": [
+      {
+        "id": "primary",
+        "summary": "alice@example.com",
+        "primary": true,
+        "access_role": "owner"
+      },
+      {
+        "id": "team@group.calendar.google.com",
+        "summary": "Calendario del Equipo",
+        "primary": false,
+        "access_role": "writer"
+      },
+      {
+        "id": "holidays@group.calendar.google.com",
+        "summary": "Feriados en Chile",
+        "primary": false,
+        "access_role": "reader"
+      }
+    ],
     "events": [
       {
         "id": "evt-1",
+        "calendar_id": "primary",
+        "calendar_name": "alice@example.com",
+        "calendar_color": "#9fc6e7",
         "summary": "Daily sync",
+        "description": "Reunión diaria del equipo",
+        "location": "Sala de conferencias",
+        "html_link": "https://www.google.com/calendar/event?eid=...",
+        "status": "confirmed",
         "start": { "dateTime": "2024-06-06T09:00:00-04:00" },
         "end": { "dateTime": "2024-06-06T09:30:00-04:00" },
-        "htmlLink": "https://www.google.com/calendar/event?eid=..."
+        "attendees": [
+          { "email": "bob@example.com", "responseStatus": "accepted" }
+        ],
+        "organizer": {
+          "email": "alice@example.com",
+          "displayName": "Alice Smith",
+          "self": true
+        },
+        "creator": {
+          "email": "alice@example.com",
+          "displayName": "Alice Smith",
+          "self": true
+        }
+      },
+      {
+        "id": "evt-2",
+        "calendar_id": "holidays@group.calendar.google.com",
+        "calendar_name": "Feriados en Chile",
+        "calendar_color": "#0d7377",
+        "summary": "Día de la Independencia",
+        "description": null,
+        "location": null,
+        "html_link": "https://www.google.com/calendar/event?eid=...",
+        "status": "confirmed",
+        "start": { "date": "2024-09-18" },
+        "end": { "date": "2024-09-19" },
+        "attendees": null,
+        "organizer": {
+          "email": "holidays@group.calendar.google.com",
+          "displayName": "Feriados en Chile"
+        },
+        "creator": {
+          "email": "holidays@group.calendar.google.com",
+          "displayName": "Feriados en Chile"
+        }
       }
     ]
   }
@@ -50,7 +113,31 @@ x-user-id: alice-123
   - `window`: objeto con el rango RFC3339 calculado en UTC.
   - `user_id`: el mismo valor recibido en `x-user-id`.
   - `timezone`: zona horaria asociada al usuario (por defecto `America/Santiago`).
-  - `events`: arreglo con los eventos devueltos por Google Calendar (se preservan campos estándar como `id`, `summary`, `start`, `end`, `htmlLink`, `attendees`, etc.).
+  - `total_calendars`: número total de calendarios accesibles al usuario.
+  - `total_events`: número total de eventos encontrados en todos los calendarios.
+  - `calendars`: arreglo con información resumida de cada calendario accesible.
+  - `events`: arreglo con los eventos de todos los calendarios, ordenados por fecha/hora de inicio.
+
+### Campos del objeto Calendar (en `calendars`)
+  - `id`: ID único del calendario en Google.
+  - `summary`: nombre/título del calendario.
+  - `primary`: indica si es el calendario principal del usuario.
+  - `access_role`: nivel de acceso (`owner`, `writer`, `reader`).
+
+### Campos del objeto Event (en `events`)
+  - `id`: ID único del evento.
+  - `calendar_id`: ID del calendario al que pertenece el evento.
+  - `calendar_name`: nombre legible del calendario.
+  - `calendar_color`: color de fondo del calendario (hex).
+  - `summary`: título del evento.
+  - `description`: descripción del evento (puede ser null).
+  - `location`: ubicación del evento (puede ser null).
+  - `html_link`: enlace directo al evento en Google Calendar.
+  - `status`: estado del evento (`confirmed`, `tentative`, `cancelled`).
+  - `start`/`end`: fecha/hora de inicio y fin (formato RFC3339).
+  - `attendees`: lista de asistentes (puede ser null).
+  - `organizer`: organizador del evento.
+  - `creator`: creador del evento.
 
 ## 4. Errores
 
@@ -64,6 +151,10 @@ x-user-id: alice-123
 
 - El usuario debe haber completado previamente el flujo de `/auth/google` y `/auth/callback` para contar con un `refresh_token` almacenado.
 - El endpoint intercambia el `refresh_token` por un `access_token` en cada llamada; no almacena tokens de acceso en KV.
-- El rango “today” se calcula con `utils.getDateRange("today")`, respetando la zona horaria del usuario. `timeMin` y `timeMax` están expresados en UTC para cumplir con los requisitos de la API de Google.
-- Los resultados se limitan a 500 eventos y se ordenan por hora de inicio (`orderBy=startTime`, `singleEvents=true`).
-- En caso de necesitar filtros adicionales (por ejemplo, calendario alternativo o paginación), se deben crear nuevos endpoints derivados documentados en este mismo directorio.
+- El rango "today" se calcula con `utils.getDateRange("today")`, respetando la zona horaria del usuario. `timeMin` y `timeMax` están expresados en UTC para cumplir con los requisitos de la API de Google.
+- **Multi-calendario**: El worker obtiene primero la lista de calendarios accesibles, luego consulta eventos de cada uno en paralelo.
+- Solo se incluyen calendarios con permisos de `reader` o superior (`writer`, `owner`).
+- Los eventos se limitan a 500 por calendario y se ordenan globalmente por hora de inicio.
+- Si algún calendario individual falla (permisos, error temporal), se registra en logs pero no interrumpe la consulta de otros calendarios.
+- Los eventos de todo el día aparecen con campo `date` en lugar de `dateTime`.
+- Para ver solo la lista de calendarios disponibles, usar `/calendar/list`.
