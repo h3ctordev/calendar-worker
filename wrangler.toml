@@ -1,14 +1,12 @@
 name = "calendar-worker"
 main = "src/index.ts"
 compatibility_date = "2024-06-06"
-usage_model = "bundled"
+
 
 # Replace with your Cloudflare account ID before deploying.
 account_id = "26ee46efc46cfaef25a75fbf7bdf1e61"
 
 [vars]
-GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
-GOOGLE_CLIENT_SECRET = "YOUR_GOOGLE_CLIENT_SECRET"
 GOOGLE_REDIRECT_URI = "https://calendar-worker.hectordev.workers.dev/auth/callback"
 
 [[kv_namespaces]]
