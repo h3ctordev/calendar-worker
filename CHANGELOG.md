@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and adheres to Conventional Commits for describing updates.
 
-## [2.1.0] - 2026-02-10
+## [2.1.0] - 2024-03-15
 ### Added
 - Event creation endpoint `POST /calendar/events` with full validation
 - Support for 20+ event types (meeting, standup, vacation, deadline, etc.)
@@ -21,7 +21,17 @@ The format follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) an
 - Type system expanded with event creation interfaces and validation structures
 - Security validations to prevent data leaks in error responses
 
-## [2.0.0] - 2026-02-10
+### Documentation
+- Complete rewrite of event creation specifications following IEEE 1016 standards
+- Software Design Documents (SDD) now comply with formal architectural documentation requirements
+- All technical documentation translated to Spanish following project language policy
+- C4 model diagrams (Context and Component levels) added using Mermaid
+- Separation of functional vs non-functional requirements in formal specification
+- Risk analysis and architectural trade-offs formally documented
+- API examples separated from formal SDD into dedicated practical guide
+- Added `.wranglerignore` for deployment optimization excluding documentation files
+
+## [2.0.0] - 2024-03-10
 ### Added
 - Multi-calendar support: all calendar endpoints now fetch events from all accessible calendars
 - New `/calendar/list` endpoint to view all available calendars for a user
@@ -46,7 +56,7 @@ The format follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) an
 - OAuth flow includes comprehensive logging for token exchange and refresh
 - Response times and payload sizes logged for performance monitoring
 
-## [1.0.0] - 2026-02-10
+## [1.0.0] - 2024-03-05
 ### Added
 - Bruno collection and comprehensive testing guides for API endpoint validation
 - Enhanced documentation guidelines and comprehensive development guides
