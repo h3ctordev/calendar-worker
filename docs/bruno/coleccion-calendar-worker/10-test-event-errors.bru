@@ -1,0 +1,532 @@
+meta {
+  name: 10 - Test Errores Creación Eventos
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{base_url}}/calendar/events
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user-id: {{user_id}}
+}
+
+body:json {
+  {
+    "calendar_id": "{{test_calendar_id}}",
+    "summary": "{{test_summary}}",
+    "description": "{{test_description}}",
+    "event_type": "{{test_event_type}}",
+    "start": {
+      "dateTime": "{{test_start_time}}",
+      "timeZone": "America/Santiago"
+    },
+    "end": {
+      "dateTime": "{{test_end_time}}",
+      "timeZone": "America/Santiago"
+    },
+    "attendees": [
+      { "email": "{{test_attendee_email}}" }
+    ]
+  }
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido para tests básicos
+  const userId = bru.getEnvVar("user_id");
+  if (!userId && bru.getVar("error_scenario") !== "missing_user_header") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+
+  // Configurar escenario de error a probar
+  const errorScenario = bru.getVar("error_scenario") || "invalid_event_type";
+
+  console.log("🧪 Probando escenario de error:", errorScenario);
+
+  // Configurar datos base válidos
+  const now = new Date();
+  const baseStartTime = new Date(now.getTime() + (2 * 60 * 60 * 1000)); // 2 horas
+  const baseEndTime = new Date(baseStartTime.getTime() + (60 * 60 * 1000)); // 1 hora después
+
+  switch(errorScenario) {
+    case "missing_user_header":
+      console.log("❌ Test: Header x-user-id faltante");
+      // Remover el header x-user-id
+      req.setHeader("x-user-id", "");
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "Test Event");
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "invalid_calendar":
+      console.log("❌ Test: Calendario inexistente");
+      bru.setVar("test_calendar_id", "nonexistent@group.calendar.google.com");
+      bru.setVar("test_summary", "Test Event");
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "empty_summary":
+      console.log("❌ Test: Summary vacío");
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "");
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "invalid_event_type":
+      console.log("❌ Test: Tipo de evento inválido");
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "Test Event");
+      bru.setVar("test_event_type", "invalid_type_123");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "invalid_dates":
+      console.log("❌ Test: Fecha de fin anterior a inicio");
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "Test Event");
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", baseEndTime.toISOString()); // Intercambiar fechas
+      bru.setVar("test_end_time", baseStartTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "invalid_email":
+      console.log("❌ Test: Email de asistente inválido");
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "Test Event");
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "invalid-email-format");
+      break;
+
+    case "long_summary":
+      console.log("❌ Test: Summary excesivamente largo");
+      const longSummary = "A".repeat(1100); // Exceder límite de 1024
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", longSummary);
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "past_date":
+      console.log("❌ Test: Evento en el pasado");
+      const pastStart = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // Ayer
+      const pastEnd = new Date(pastStart.getTime() + (60 * 60 * 1000));
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "Past Event");
+      bru.setVar("test_event_type", "meeting");
+      bru.setVar("test_start_time", pastStart.toISOString());
+      bru.setVar("test_end_time", pastEnd.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    case "readonly_calendar":
+      console.log("❌ Test: Calendario de solo lectura");
+      // Usar un calendario típicamente de solo lectura como holidays
+      bru.setVar("test_calendar_id", "en.usa#holiday@group.v.calendar.google.com");
+      bru.setVar("test_summary", "Test Holiday");
+      bru.setVar("test_event_type", "reminder");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+
+    default:
+      console.log("❌ Test: Tipo de evento inválido (default)");
+      bru.setVar("test_calendar_id", "primary");
+      bru.setVar("test_summary", "Test Event");
+      bru.setVar("test_event_type", "invalid_type");
+      bru.setVar("test_start_time", baseStartTime.toISOString());
+      bru.setVar("test_end_time", baseEndTime.toISOString());
+      bru.setVar("test_attendee_email", "test@example.com");
+      break;
+  }
+
+  // Configurar descripción según escenario
+  bru.setVar("test_description", `Test de error: ${errorScenario}`);
+
+  console.log("📝 Datos de prueba configurados");
+  console.log("   Calendario:", bru.getVar("test_calendar_id"));
+  console.log("   Tipo evento:", bru.getVar("test_event_type"));
+  console.log("   Summary:", bru.getVar("test_summary").substring(0, 50) + "...");
+}
+
+script:post-response {
+  const errorScenario = bru.getVar("error_scenario") || "invalid_event_type";
+
+  console.log("Escenario probado:", errorScenario);
+  console.log("Status:", res.getStatus());
+
+  const body = res.getBody();
+
+  // Análisis específico por escenario
+  if (res.getStatus() >= 400) {
+    console.log("✅ Error capturado correctamente");
+
+    if (body.error) {
+      console.log("📝 Mensaje:", body.error.message);
+
+      // Mostrar detalles de validación si existen
+      if (body.error.details && body.error.details.validation_errors) {
+        console.log("🔍 Errores de validación:");
+        body.error.details.validation_errors.forEach((error, index) => {
+          console.log(`   ${index + 1}. ${error.field}: ${error.message}`);
+        });
+      }
+
+      // Mostrar información de permisos si existe
+      if (body.error.details && body.error.details.required_permission) {
+        console.log("🔒 Permisos:");
+        console.log("   Requerido:", body.error.details.required_permission);
+        console.log("   Actual:", body.error.details.current_permission);
+      }
+
+      // Análisis específico por tipo de error
+      switch(errorScenario) {
+        case "missing_user_header":
+          console.log("✅ Confirmado: Header x-user-id es obligatorio");
+          break;
+        case "invalid_calendar":
+          console.log("✅ Confirmado: Validación de calendario funciona");
+          break;
+        case "empty_summary":
+          console.log("✅ Confirmado: Summary no puede estar vacío");
+          break;
+        case "invalid_event_type":
+          console.log("✅ Confirmado: Validación de tipos de evento funciona");
+          break;
+        case "invalid_dates":
+          console.log("✅ Confirmado: Validación de fechas funciona");
+          break;
+        case "invalid_email":
+          console.log("✅ Confirmado: Validación de emails funciona");
+          break;
+        case "long_summary":
+          console.log("✅ Confirmado: Límite de longitud de summary funciona");
+          break;
+        case "past_date":
+          console.log("⚠️  Nota: Eventos pasados pueden ser válidos en algunos casos");
+          break;
+        case "readonly_calendar":
+          console.log("✅ Confirmado: Validación de permisos funciona");
+          break;
+      }
+    }
+  } else {
+    console.log("⚠️  Advertencia: Se esperaba un error pero la respuesta fue exitosa");
+    console.log("   Esto puede indicar que la validación no está funcionando correctamente");
+  }
+
+  // Verificar que no se filtren datos sensibles
+  const responseText = JSON.stringify(body);
+  if (responseText.includes("refresh_token") ||
+      responseText.includes("client_secret") ||
+      responseText.includes("access_token")) {
+    console.log("🚨 ADVERTENCIA: Posible filtración de datos sensibles");
+  } else {
+    console.log("✅ No se detectaron datos sensibles en la respuesta");
+  }
+
+  // Guardar resultado del test para análisis
+  bru.setVar(`error_test_${errorScenario}_status`, res.getStatus());
+  bru.setVar(`error_test_${errorScenario}_passed`, res.getStatus() >= 400);
+}
+
+tests {
+  test("Error responses have proper structure", function() {
+    const body = res.getBody();
+    if (res.getStatus() >= 400) {
+      expect(body).to.have.property("error");
+      expect(body.error).to.have.property("message");
+    }
+  });
+
+  test("Error responses are JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("No sensitive data in error response", function() {
+    const responseText = JSON.stringify(res.getBody());
+    expect(responseText).to.not.contain("refresh_token");
+    expect(responseText).to.not.contain("client_secret");
+    expect(responseText).to.not.contain("access_token");
+  });
+
+  test("Validation errors have correct structure", function() {
+    const body = res.getBody();
+    if (body.error && body.error.details && body.error.details.validation_errors) {
+      body.error.details.validation_errors.forEach((error) => {
+        expect(error).to.have.property("field");
+        expect(error).to.have.property("message");
+      });
+    }
+  });
+
+  test("Missing header returns 401", function() {
+    const errorScenario = bru.getVar("error_scenario");
+    if (errorScenario === "missing_user_header") {
+      expect(res.getStatus()).to.equal(401);
+    }
+  });
+
+  test("Invalid calendar returns 404 or 403", function() {
+    const errorScenario = bru.getVar("error_scenario");
+    if (errorScenario === "invalid_calendar" || errorScenario === "readonly_calendar") {
+      expect([403, 404]).to.include(res.getStatus());
+    }
+  });
+
+  test("Validation errors return 400", function() {
+    const errorScenario = bru.getVar("error_scenario");
+    const validationScenarios = [
+      "empty_summary", "invalid_event_type", "invalid_dates",
+      "invalid_email", "long_summary"
+    ];
+
+    if (validationScenarios.includes(errorScenario)) {
+      expect(res.getStatus()).to.equal(400);
+    }
+  });
+
+  test("Permission errors return 403", function() {
+    const errorScenario = bru.getVar("error_scenario");
+    if (errorScenario === "readonly_calendar") {
+      expect([403, 404]).to.include(res.getStatus());
+    }
+  });
+}
+
+docs {
+  # Test de Errores en Creación de Eventos
+
+  Este endpoint especializado permite probar diferentes escenarios de error en la creación de eventos para verificar el manejo correcto de validaciones, permisos y casos edge.
+
+  ## Variables de Control
+
+  Configura la variable `error_scenario` para probar diferentes escenarios de error:
+
+  ### Errores de Autenticación
+  - `missing_user_header`: Sin header x-user-id (401)
+
+  ### Errores de Validación de Datos
+  - `empty_summary`: Summary vacío (400)
+  - `invalid_event_type`: Tipo de evento no válido (400)
+  - `invalid_dates`: Fecha de fin anterior a inicio (400)
+  - `invalid_email`: Email de asistente malformado (400)
+  - `long_summary`: Summary excesivamente largo (400)
+
+  ### Errores de Calendario y Permisos
+  - `invalid_calendar`: Calendario inexistente (404)
+  - `readonly_calendar`: Calendario de solo lectura (403)
+
+  ### Errores de Lógica de Negocio
+  - `past_date`: Evento programado en el pasado (puede ser válido)
+
+  ## Uso del Test
+
+  ### Configurar Escenario
+  ```javascript
+  // En Variables de Colección de Bruno
+  bru.setVar("error_scenario", "invalid_event_type");
+  ```
+
+  ### Ejecutar Test
+  Ejecuta el request "10 - Test Errores Creación Eventos"
+
+  ### Cambiar Escenario
+  ```javascript
+  bru.setVar("error_scenario", "empty_summary");
+  ```
+  Ejecuta nuevamente para probar diferente validación
+
+  ## Ejemplos de Respuestas de Error
+
+  ### 400 - Datos Inválidos
+  ```json
+  {
+    "error": {
+      "message": "Invalid request data.",
+      "details": {
+        "validation_errors": [
+          {
+            "field": "event_type",
+            "message": "Invalid event type. Must be one of: meeting, presentation, workshop, etc."
+          }
+        ]
+      }
+    }
+  }
+  ```
+
+  ### 401 - Sin Autenticación
+  ```json
+  {
+    "error": {
+      "message": "Missing x-user-id header."
+    }
+  }
+  ```
+
+  ### 403 - Permisos Insuficientes
+  ```json
+  {
+    "error": {
+      "message": "Insufficient permissions to create events in this calendar.",
+      "details": {
+        "calendar_id": "readonly@group.calendar.google.com",
+        "required_permission": "writer",
+        "current_permission": "reader"
+      }
+    }
+  }
+  ```
+
+  ### 404 - Calendario No Encontrado
+  ```json
+  {
+    "error": {
+      "message": "Calendar not found or not accessible.",
+      "details": {
+        "calendar_id": "nonexistent@group.calendar.google.com",
+        "user_id": "usuario123"
+      }
+    }
+  }
+  ```
+
+  ## Escenarios de Validación Específicos
+
+  ### 1. Validación de Tipos de Evento
+  ```javascript
+  bru.setVar("error_scenario", "invalid_event_type");
+  ```
+  **Verifica**: Que solo se acepten tipos de eventos válidos
+  **Esperado**: Error 400 con lista de tipos válidos
+
+  ### 2. Validación de Fechas
+  ```javascript
+  bru.setVar("error_scenario", "invalid_dates");
+  ```
+  **Verifica**: Que la fecha de inicio sea anterior a la de fin
+  **Esperado**: Error 400 con mensaje descriptivo
+
+  ### 3. Validación de Emails
+  ```javascript
+  bru.setVar("error_scenario", "invalid_email");
+  ```
+  **Verifica**: Formato correcto de emails de asistentes
+  **Esperado**: Error 400 con detalles del email inválido
+
+  ### 4. Límites de Longitud
+  ```javascript
+  bru.setVar("error_scenario", "long_summary");
+  ```
+  **Verifica**: Respeto de límites de caracteres (1024 para summary)
+  **Esperado**: Error 400 con límite específico
+
+  ### 5. Validación de Permisos
+  ```javascript
+  bru.setVar("error_scenario", "readonly_calendar");
+  ```
+  **Verifica**: Permisos de escritura en calendario
+  **Esperado**: Error 403 con detalles de permisos
+
+  ## Tests Automatizados
+
+  ### Estructura de Respuestas
+  - Todas las respuestas de error son JSON válido
+  - Campo `error.message` siempre presente
+  - Estructura consistente de `validation_errors`
+
+  ### Códigos de Estado
+  - **400**: Errores de validación de datos
+  - **401**: Problemas de autenticación
+  - **403**: Problemas de autorización/permisos
+  - **404**: Recursos no encontrados
+
+  ### Seguridad
+  - No filtración de tokens o credenciales
+  - Mensajes de error informativos pero seguros
+  - Validación de entrada robusta
+
+  ## Casos de Uso para Testing
+
+  ### 1. Testing de Regresión
+  Ejecutar todos los escenarios para verificar que las validaciones siguen funcionando después de cambios
+
+  ### 2. Validación de API
+  Confirmar que los códigos de estado y mensajes son apropiados para cada tipo de error
+
+  ### 3. Testing de Seguridad
+  Verificar que no se filtran datos sensibles en respuestas de error
+
+  ### 4. Documentación de Errores
+  Generar ejemplos reales de respuestas de error para documentación
+
+  ## Flujo de Testing Sistemático
+
+  ### Preparación
+  1. Asegurar que el usuario esté autenticado (requests 02-03)
+  2. Obtener lista de calendarios (request 04) para identificar permisos
+
+  ### Ejecución
+  1. Configurar `error_scenario`
+  2. Ejecutar request
+  3. Verificar código de estado esperado
+  4. Analizar estructura de respuesta
+  5. Cambiar a siguiente escenario
+
+  ### Validación Completa
+  ```javascript
+  const scenarios = [
+    "missing_user_header", "invalid_calendar", "empty_summary",
+    "invalid_event_type", "invalid_dates", "invalid_email",
+    "long_summary", "readonly_calendar"
+  ];
+
+  scenarios.forEach(scenario => {
+    bru.setVar("error_scenario", scenario);
+    // Ejecutar request y verificar resultado
+  });
+  ```
+
+  ## Variables de Resultado
+
+  El script guarda resultados para análisis posterior:
+  - `error_test_[scenario]_status`: Código de estado recibido
+  - `error_test_[scenario]_passed`: Si el test pasó (true/false)
+
+  ## Troubleshooting del Test
+
+  ### Error inesperado exitoso (200/201)
+  **Causa**: La validación no está funcionando
+  **Acción**: Revisar implementación de validaciones
+
+  ### Error de código incorrecto
+  **Causa**: Mapeo incorrecto de errores a códigos HTTP
+  **Acción**: Verificar manejo de excepciones
+
+  ### Datos sensibles en respuesta
+  **Causa**: Logging excesivo o filtración
+  **Acción**: Revisar redacción de información sensible
+
+  Este sistema de testing de errores asegura que la API maneje correctamente todos los casos edge y proporcione retroalimentación útil a los clientes.
+}

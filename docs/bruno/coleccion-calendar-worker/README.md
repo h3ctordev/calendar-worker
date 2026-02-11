@@ -13,6 +13,9 @@ La colección está organizada en orden secuencial para seguir el flujo completo
 5. **05-calendar-today.bru** - Obtener eventos de hoy (multi-calendario)
 6. **06-calendar-week.bru** - Obtener eventos de la semana (multi-calendario)
 7. **07-test-errores.bru** - Testing de errores comunes
+8. **08-create-event.bru** - Crear evento simple en calendario
+9. **09-create-recurring-event.bru** - Crear evento recurrente
+10. **10-test-event-errors.bru** - Testing de errores de creación de eventos
 
 ## Configuración de entornos
 
@@ -70,6 +73,12 @@ Una vez autenticado, puedes ejecutar:
 - `06-calendar-week.bru` para eventos de la semana (multi-calendario)
 - `07-test-errores.bru` para probar manejo de errores
 
+### 6. Crear eventos (v2.1.0)
+Para crear nuevos eventos:
+- `08-create-event.bru` para crear evento simple
+- `09-create-recurring-event.bru` para crear eventos recurrentes
+- `10-test-event-errors.bru` para probar errores de creación
+
 ## Configuración requerida
 
 ### Cloudflare Worker
@@ -120,9 +129,16 @@ Cada request incluye scripts que:
 - **Causa**: Error del worker o API de Google
 - **Solución**: Revisar logs de Cloudflare y configuración OAuth
 
-## Nuevas funcionalidades (v2.0.0)
+## Nuevas funcionalidades
 
-### Multi-calendario
+### v2.1.0 - Creación de Eventos
+- **Crear eventos**: Endpoint POST `/calendar/events` para crear eventos
+- **Tipos de eventos**: Categorización con 20+ tipos (meeting, standup, vacation, etc.)
+- **Eventos recurrentes**: Soporte completo para patrones RRULE
+- **Validaciones robustas**: Validación de fechas, emails, permisos y datos
+- **Calendario específico**: Crear eventos en cualquier calendario accesible
+
+### v2.0.0 - Multi-calendario
 - Todos los endpoints de calendario ahora consultan **múltiples calendarios**
 - Incluye calendarios principales, compartidos, suscritos y públicos
 - Cada evento incluye información del calendario origen (ID, nombre, color)
@@ -164,11 +180,21 @@ Activa las siguientes variables en Bruno para debugging avanzado:
 5. `05-calendar-today` - Eventos de hoy de todos los calendarios
 6. `06-calendar-week` - Eventos de la semana de todos los calendarios
 
-### Testing de regresión
-Una vez el usuario está autenticado, puedes ejecutar directamente:
+### Testing de funcionalidades completas
+Una vez el usuario está autenticado:
 - `04-calendar-list` para verificar acceso a calendarios
-- `05-calendar-today` y `06-calendar-week` para datos actuales
-- `07-test-errores` para verificar manejo de errores
+- `05-calendar-today` y `06-calendar-week` para consultar eventos
+- `08-create-event` para crear evento simple
+- `09-create-recurring-event` para crear eventos recurrentes
+- `07-test-errores` y `10-test-event-errors` para verificar manejo de errores
+
+### Testing de creación de eventos (v2.1.0)
+Flujo específico para testing de creación:
+1. `04-calendar-list` - Identificar calendarios con permisos de escritura
+2. `08-create-event` - Crear evento simple en calendario principal
+3. `05-calendar-today` - Verificar que el evento aparece en consultas
+4. `09-create-recurring-event` - Probar eventos recurrentes
+5. `10-test-event-errors` - Validar manejo de errores de creación
 
 ## Interpretación de respuestas multi-calendario
 
@@ -211,7 +237,10 @@ docs/bruno/coleccion-calendar-worker/
 ├── 04-calendar-list.bru      # GET /calendar/list - Lista calendarios
 ├── 05-calendar-today.bru     # GET /calendar/today - Eventos hoy (multi)
 ├── 06-calendar-week.bru      # GET /calendar/week - Eventos semana (multi)
-└── 07-test-errores.bru       # Testing de manejo de errores
+├── 07-test-errores.bru       # Testing de manejo de errores
+├── 08-create-event.bru       # POST /calendar/events - Crear evento
+├── 09-create-recurring-event.bru  # POST /calendar/events - Evento recurrente
+└── 10-test-event-errors.bru  # Testing de errores de creación
 ```
 
 Cada archivo `.bru` incluye documentación completa en la sección `docs` con ejemplos, casos de uso y troubleshooting específico.

@@ -1,0 +1,437 @@
+meta {
+  name: 08 - Crear Evento en Calendario
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/calendar/events
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user-id: {{user_id}}
+}
+
+body:json {
+  {
+    "calendar_id": "primary",
+    "summary": "Reunión de planificación Q1",
+    "description": "Planificación estratégica para el primer trimestre del año",
+    "location": "Sala de conferencias A - Piso 3",
+    "event_type": "planning",
+    "start": {
+      "dateTime": "{{event_start_time}}",
+      "timeZone": "America/Santiago"
+    },
+    "end": {
+      "dateTime": "{{event_end_time}}",
+      "timeZone": "America/Santiago"
+    },
+    "attendees": [
+      { "email": "manager@example.com" },
+      { "email": "lead@example.com" }
+    ],
+    "reminders": {
+      "useDefault": false,
+      "overrides": [
+        { "method": "email", "minutes": 60 },
+        { "method": "popup", "minutes": 15 }
+      ]
+    },
+    "visibility": "default",
+    "status": "confirmed"
+  }
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+
+  // Configurar horarios del evento (1 hora desde ahora)
+  const now = new Date();
+  const startTime = new Date(now.getTime() + (2 * 60 * 60 * 1000)); // 2 horas desde ahora
+  const endTime = new Date(startTime.getTime() + (90 * 60 * 1000)); // 1.5 horas de duración
+
+  bru.setVar("event_start_time", startTime.toISOString());
+  bru.setVar("event_end_time", endTime.toISOString());
+
+  console.log("🚀 Creando evento para usuario:", bru.getEnvVar("user_id"));
+  console.log("📅 Evento programado:", startTime.toLocaleString());
+  console.log("⏱️  Duración: 1.5 horas");
+
+  // Verificar que el usuario esté autenticado
+  if (!bru.getVar("last_total_calendars")) {
+    console.log("⚠️  Recomendación: Ejecutar '04 - Lista de Calendarios' primero para verificar permisos");
+  }
+}
+
+script:post-response {
+  console.log("Status:", res.getStatus());
+
+  if (res.getStatus() === 201) {
+    const body = res.getBody();
+    console.log("✅ Evento creado exitosamente!");
+    console.log("🆔 ID del evento:", body.id);
+    console.log("📝 Resumen:", body.summary);
+    console.log("📍 Ubicación:", body.location || "No especificada");
+    console.log("🗓️  Calendario:", body.calendar_info?.calendar_name || "Desconocido");
+    console.log("🔗 Enlace:", body.html_link);
+
+    if (body.attendees && body.attendees.length > 0) {
+      console.log("👥 Asistentes invitados:");
+      body.attendees.forEach((attendee, index) => {
+        console.log(`   ${index + 1}. ${attendee.email} (${attendee.responseStatus || 'pendiente'})`);
+      });
+    }
+
+    if (body.event_metadata) {
+      console.log("🏷️  Tipo de evento:", body.event_metadata.event_type);
+      console.log("⚙️  Creado por worker:", body.event_metadata.created_by_worker);
+    }
+
+    // Guardar información del evento para otros requests
+    bru.setVar("last_created_event_id", body.id);
+    bru.setVar("last_created_event_link", body.html_link);
+
+    console.log("\n✨ Puedes ver el evento en Google Calendar usando el enlace de arriba");
+
+  } else {
+    const body = res.getBody();
+    console.log("❌ Error al crear evento:");
+    console.log("Status:", res.getStatus());
+
+    if (body.error) {
+      console.log("Mensaje:", body.error.message);
+
+      if (body.error.details && body.error.details.validation_errors) {
+        console.log("Errores de validación:");
+        body.error.details.validation_errors.forEach((error, index) => {
+          console.log(`  ${index + 1}. ${error.field}: ${error.message}`);
+        });
+      }
+
+      if (body.error.details && body.error.details.required_permission) {
+        console.log("Permisos requeridos:", body.error.details.required_permission);
+        console.log("Permisos actuales:", body.error.details.current_permission);
+        console.log("💡 Solución: Usar un calendario donde tengas permisos de escritura");
+      }
+    }
+  }
+}
+
+tests {
+  test("Status code is 201 (Created)", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has required event fields", function() {
+    const body = res.getBody();
+    expect(body.id).to.exist;
+    expect(body.summary).to.exist;
+    expect(body.start).to.exist;
+    expect(body.end).to.exist;
+    expect(body.html_link).to.exist;
+    expect(body.status).to.exist;
+  });
+
+  test("Event has calendar information", function() {
+    const body = res.getBody();
+    expect(body.calendar_info).to.exist;
+    expect(body.calendar_info.calendar_id).to.equal("primary");
+    expect(body.calendar_info.calendar_name).to.exist;
+  });
+
+  test("Event has worker metadata", function() {
+    const body = res.getBody();
+    expect(body.event_metadata).to.exist;
+    expect(body.event_metadata.event_type).to.equal("planning");
+    expect(body.event_metadata.created_by_worker).to.be.true;
+    expect(body.event_metadata.worker_version).to.exist;
+  });
+
+  test("Event summary matches request", function() {
+    const body = res.getBody();
+    expect(body.summary).to.equal("Reunión de planificación Q1");
+  });
+
+  test("Event has correct attendees", function() {
+    const body = res.getBody();
+    expect(body.attendees).to.be.an("array");
+    expect(body.attendees.length).to.equal(2);
+
+    const emails = body.attendees.map(a => a.email);
+    expect(emails).to.include("manager@example.com");
+    expect(emails).to.include("lead@example.com");
+  });
+
+  test("Event has reminders configured", function() {
+    const body = res.getBody();
+    expect(body.reminders).to.exist;
+    expect(body.reminders.useDefault).to.be.false;
+    expect(body.reminders.overrides).to.be.an("array");
+    expect(body.reminders.overrides.length).to.equal(2);
+  });
+
+  test("Event dates are valid", function() {
+    const body = res.getBody();
+    const startDate = new Date(body.start.dateTime);
+    const endDate = new Date(body.end.dateTime);
+
+    expect(startDate.getTime()).to.be.lessThan(endDate.getTime());
+    expect(body.start.timeZone).to.equal("America/Santiago");
+    expect(body.end.timeZone).to.equal("America/Santiago");
+  });
+
+  test("Event is confirmed status", function() {
+    const body = res.getBody();
+    expect(body.status).to.equal("confirmed");
+  });
+
+  test("Creator and organizer are set", function() {
+    const body = res.getBody();
+    expect(body.creator).to.exist;
+    expect(body.organizer).to.exist;
+    expect(body.creator.self).to.be.true;
+    expect(body.organizer.self).to.be.true;
+  });
+}
+
+docs {
+  # Crear Evento en Calendario
+
+  Este endpoint permite crear un nuevo evento en un calendario específico del usuario autenticado, con soporte para tipos de eventos, asistentes, recordatorios y recurrencia.
+
+  ## Autenticación requerida
+
+  - `x-user-id` header: Identificador del usuario que debe existir en Cloudflare KV
+  - **Permisos**: El usuario debe tener permisos de `writer` u `owner` en el calendario especificado
+
+  ## Request Body
+
+  ### Campos Requeridos
+  - `calendar_id`: ID del calendario donde crear el evento
+  - `summary`: Título/resumen del evento (máximo 1024 caracteres)
+  - `start`: Fecha y hora de inicio
+  - `end`: Fecha y hora de fin
+  - `event_type`: Tipo de evento (ver tipos soportados)
+
+  ### Campos Opcionales
+  - `description`: Descripción detallada del evento
+  - `location`: Ubicación física o virtual del evento
+  - `attendees`: Lista de asistentes invitados
+  - `reminders`: Configuración de recordatorios
+  - `visibility`: Visibilidad del evento (`default`, `public`, `private`, `confidential`)
+  - `status`: Estado del evento (`confirmed`, `tentative`, `cancelled`)
+
+  ## Tipos de Eventos Soportados
+
+  ### Eventos de Trabajo
+  - `meeting`: Reuniones de trabajo
+  - `presentation`: Presentaciones
+  - `workshop`: Talleres o capacitaciones
+  - `conference-call`: Llamadas de conferencia
+  - `review`: Sesiones de revisión
+  - `planning`: Sesiones de planificación
+  - `standup`: Reuniones diarias de equipo
+
+  ### Eventos Personales
+  - `appointment`: Citas médicas, legales, etc.
+  - `personal`: Eventos personales generales
+  - `family`: Eventos familiares
+  - `social`: Eventos sociales
+  - `travel`: Viajes o desplazamientos
+  - `vacation`: Vacaciones o tiempo libre
+
+  ### Eventos de Proyecto
+  - `deadline`: Fechas límite importantes
+  - `milestone`: Hitos del proyecto
+  - `launch`: Lanzamientos de producto
+  - `deployment`: Despliegues de sistemas
+
+  ### Eventos Especiales
+  - `all-day`: Eventos de todo el día
+  - `recurring`: Eventos recurrentes
+  - `reminder`: Recordatorios simples
+  - `blocked-time`: Tiempo bloqueado sin detalles
+
+  ## Respuesta esperada (201 Created)
+
+  ```json
+  {
+    "id": "evento_abc123xyz",
+    "status": "confirmed",
+    "html_link": "https://www.google.com/calendar/event?eid=...",
+    "created": "2024-03-15T08:30:00.000Z",
+    "updated": "2024-03-15T08:30:00.000Z",
+    "summary": "Reunión de planificación Q1",
+    "description": "Planificación estratégica...",
+    "location": "Sala de conferencias A",
+    "start": {
+      "dateTime": "2024-03-15T09:00:00-03:00",
+      "timeZone": "America/Santiago"
+    },
+    "end": {
+      "dateTime": "2024-03-15T10:30:00-03:00",
+      "timeZone": "America/Santiago"
+    },
+    "attendees": [
+      {
+        "email": "manager@example.com",
+        "responseStatus": "needsAction"
+      }
+    ],
+    "calendar_info": {
+      "calendar_id": "primary",
+      "calendar_name": "usuario@example.com",
+      "calendar_color": "#9fc6e7"
+    },
+    "event_metadata": {
+      "event_type": "planning",
+      "created_by_worker": true,
+      "worker_version": "2.1.0"
+    }
+  }
+  ```
+
+  ## Casos de error comunes
+
+  ### 400 - Datos inválidos
+  ```json
+  {
+    "error": {
+      "message": "Invalid request data.",
+      "details": {
+        "validation_errors": [
+          {
+            "field": "summary",
+            "message": "Summary is required and cannot be empty"
+          }
+        ]
+      }
+    }
+  }
+  ```
+
+  ### 401 - No autenticado
+  ```json
+  {
+    "error": {
+      "message": "Missing x-user-id header."
+    }
+  }
+  ```
+
+  ### 403 - Permisos insuficientes
+  ```json
+  {
+    "error": {
+      "message": "Insufficient permissions to create events in this calendar.",
+      "details": {
+        "calendar_id": "readonly@group.calendar.google.com",
+        "required_permission": "writer",
+        "current_permission": "reader"
+      }
+    }
+  }
+  ```
+
+  ### 404 - Calendario no encontrado
+  ```json
+  {
+    "error": {
+      "message": "Calendar not found or not accessible.",
+      "details": {
+        "calendar_id": "invalid@group.calendar.google.com"
+      }
+    }
+  }
+  ```
+
+  ## Variables dinámicas
+
+  El script pre-request genera automáticamente:
+  - `event_start_time`: 2 horas desde el momento actual
+  - `event_end_time`: 1.5 horas después del inicio
+
+  ## Configuración de prueba
+
+  ### Calendario de destino
+  Por defecto usa `"primary"` (calendario principal). Para probar otros calendarios:
+  1. Ejecutar "04 - Lista de Calendarios" para ver calendarios disponibles
+  2. Cambiar `calendar_id` en el body por un calendario con permisos `writer` u `owner`
+
+  ### Tipos de evento para probar
+  Cambia `event_type` en el body para probar diferentes tipos:
+  ```json
+  "event_type": "meeting"      // Reunión de trabajo
+  "event_type": "workshop"     // Taller o capacitación
+  "event_type": "deadline"     // Fecha límite
+  "event_type": "vacation"     // Vacaciones
+  ```
+
+  ### Asistentes personalizados
+  Modifica el array `attendees` para probar con diferentes invitados:
+  ```json
+  "attendees": [
+    { "email": "real-email@example.com" },
+    { "email": "optional@example.com", "optional": true }
+  ]
+  ```
+
+  ## Prerequisitos
+
+  1. Usuario debe haber completado flujo OAuth con permisos de escritura
+  2. Calendario destino debe existir y ser accesible
+  3. Usuario debe tener rol `writer` u `owner` en el calendario
+  4. Recomendado: Ejecutar "04 - Lista de Calendarios" para verificar permisos
+
+  ## Flujo recomendado
+
+  1. **Verificar permisos**: Ejecutar "04 - Lista de Calendarios"
+  2. **Crear evento**: Ejecutar "08 - Crear Evento"
+  3. **Verificar creación**: Ejecutar "05 - Eventos de Hoy" para confirmar
+  4. **Ver en Google**: Usar el `html_link` de la respuesta
+
+  ## Notas técnicas
+
+  - Los horarios se calculan dinámicamente para evitar conflictos
+  - El evento se crea 2 horas en el futuro por defecto
+  - La duración por defecto es de 1.5 horas
+  - Los asistentes reciben invitaciones automáticamente
+  - El worker agrega metadatos para trazabilidad
+
+  ## Troubleshooting
+
+  ### Error de permisos
+  **Síntoma**: Error 403 con mensaje de permisos insuficientes
+  **Solución**: Usar un calendario donde tengas permisos `writer` u `owner`
+
+  ### Error de validación
+  **Síntoma**: Error 400 con validation_errors
+  **Solución**: Revisar el formato de fechas, emails y campos requeridos
+
+  ### Usuario no encontrado
+  **Síntoma**: Error 404 "User not found"
+  **Solución**: Completar el flujo OAuth (requests 02-03)
+
+  ## Scripts automáticos
+
+  - **Pre-request**: Calcula horarios dinámicos y valida configuración
+  - **Post-response**: Muestra resumen detallado del evento creado
+  - **Tests**: Valida estructura completa de la respuesta y metadatos
+
+  ## Variables guardadas
+
+  Después de crear un evento exitosamente, se guardan:
+  - `last_created_event_id`: ID del evento para referencias futuras
+  - `last_created_event_link`: Enlace directo a Google Calendar
+}

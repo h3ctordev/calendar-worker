@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and adheres to Conventional Commits for describing updates.
 
+## [2.1.0] - 2026-02-10
+### Added
+- Event creation endpoint `POST /calendar/events` with full validation
+- Support for 20+ event types (meeting, standup, vacation, deadline, etc.)
+- Recurring event creation with RRULE patterns (RFC5545 compliant)
+- Calendar permission validation (requires writer/owner access)
+- Comprehensive input validation (dates, emails, field lengths, formats)
+- Event enrichment with calendar metadata and worker version tracking
+- Bruno test collection for event creation scenarios including error cases
+- Detailed API documentation with examples and troubleshooting guides
+
+### Enhanced
+- Robust error handling with specific error types and detailed validation messages
+- Logging system extended to track event creation attempts and outcomes
+- Type system expanded with event creation interfaces and validation structures
+- Security validations to prevent data leaks in error responses
+
 ## [2.0.0] - 2026-02-10
 ### Added
 - Multi-calendar support: all calendar endpoints now fetch events from all accessible calendars

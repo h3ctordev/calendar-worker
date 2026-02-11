@@ -1,0 +1,468 @@
+meta {
+  name: 09 - Crear Evento Recurrente
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{base_url}}/calendar/events
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  x-user-id: {{user_id}}
+}
+
+body:json {
+  {
+    "calendar_id": "primary",
+    "summary": "Daily Standup Meeting",
+    "description": "Reunión diaria del equipo de desarrollo para sincronizar trabajo y identificar bloqueos",
+    "location": "Sala virtual - Google Meet",
+    "event_type": "standup",
+    "start": {
+      "dateTime": "{{recurring_event_start_time}}",
+      "timeZone": "America/Santiago"
+    },
+    "end": {
+      "dateTime": "{{recurring_event_end_time}}",
+      "timeZone": "America/Santiago"
+    },
+    "recurrence": [
+      "RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=20"
+    ],
+    "attendees": [
+      { "email": "dev1@example.com", "displayName": "Developer 1" },
+      { "email": "dev2@example.com", "displayName": "Developer 2" },
+      { "email": "scrum-master@example.com", "displayName": "Scrum Master" }
+    ],
+    "reminders": {
+      "useDefault": false,
+      "overrides": [
+        { "method": "popup", "minutes": 10 }
+      ]
+    },
+    "visibility": "default",
+    "status": "confirmed"
+  }
+}
+
+script:pre-request {
+  // Verificar que user_id esté definido
+  if (!bru.getEnvVar("user_id") || bru.getEnvVar("user_id").trim() === "") {
+    throw new Error("user_id no está definido en las variables de entorno");
+  }
+
+  // Configurar horario para el próximo lunes a las 9:00 AM
+  const now = new Date();
+  const daysUntilMonday = (1 + 7 - now.getDay()) % 7;
+  const nextMonday = new Date(now);
+  nextMonday.setDate(now.getDate() + (daysUntilMonday === 0 ? 7 : daysUntilMonday));
+  nextMonday.setHours(9, 0, 0, 0); // 9:00 AM
+
+  const startTime = nextMonday;
+  const endTime = new Date(startTime.getTime() + (30 * 60 * 1000)); // 30 minutos
+
+  bru.setVar("recurring_event_start_time", startTime.toISOString());
+  bru.setVar("recurring_event_end_time", endTime.toISOString());
+
+  console.log("🔄 Creando evento recurrente para usuario:", bru.getEnvVar("user_id"));
+  console.log("📅 Primera ocurrencia:", startTime.toLocaleString());
+  console.log("⏱️  Duración: 30 minutos");
+  console.log("🔁 Recurrencia: Lunes a Viernes por 4 semanas (20 días laborales)");
+
+  // Verificar que el usuario esté autenticado
+  if (!bru.getVar("last_total_calendars")) {
+    console.log("⚠️  Recomendación: Ejecutar '04 - Lista de Calendarios' primero para verificar permisos");
+  }
+}
+
+script:post-response {
+  console.log("Status:", res.getStatus());
+
+  if (res.getStatus() === 201) {
+    const body = res.getBody();
+    console.log("✅ Evento recurrente creado exitosamente!");
+    console.log("🆔 ID del evento:", body.id);
+    console.log("📝 Resumen:", body.summary);
+    console.log("📍 Ubicación:", body.location || "No especificada");
+    console.log("🗓️  Calendario:", body.calendar_info?.calendar_name || "Desconocido");
+    console.log("🔗 Enlace:", body.html_link);
+
+    if (body.recurrence && body.recurrence.length > 0) {
+      console.log("🔁 Recurrencia configurada:");
+      body.recurrence.forEach((rule, index) => {
+        console.log(`   ${index + 1}. ${rule}`);
+      });
+    }
+
+    if (body.attendees && body.attendees.length > 0) {
+      console.log("👥 Asistentes invitados:");
+      body.attendees.forEach((attendee, index) => {
+        console.log(`   ${index + 1}. ${attendee.displayName || attendee.email} (${attendee.responseStatus || 'pendiente'})`);
+      });
+    }
+
+    if (body.event_metadata) {
+      console.log("🏷️  Tipo de evento:", body.event_metadata.event_type);
+      console.log("⚙️  Creado por worker:", body.event_metadata.created_by_worker);
+    }
+
+    // Guardar información del evento recurrente
+    bru.setVar("last_created_recurring_event_id", body.id);
+    bru.setVar("last_created_recurring_event_link", body.html_link);
+
+    console.log("\n✨ Evento recurrente configurado! Se crearán 20 instancias (lunes a viernes por 4 semanas)");
+    console.log("🔍 Verifica en Google Calendar para ver todas las instancias");
+
+  } else {
+    const body = res.getBody();
+    console.log("❌ Error al crear evento recurrente:");
+    console.log("Status:", res.getStatus());
+
+    if (body.error) {
+      console.log("Mensaje:", body.error.message);
+
+      if (body.error.details && body.error.details.validation_errors) {
+        console.log("Errores de validación:");
+        body.error.details.validation_errors.forEach((error, index) => {
+          console.log(`  ${index + 1}. ${error.field}: ${error.message}`);
+        });
+      }
+
+      if (body.error.details && body.error.details.required_permission) {
+        console.log("Permisos requeridos:", body.error.details.required_permission);
+        console.log("Permisos actuales:", body.error.details.current_permission);
+        console.log("💡 Solución: Usar un calendario donde tengas permisos de escritura");
+      }
+
+      // Ayuda específica para errores de recurrencia
+      if (body.error.message && body.error.message.includes("recurrence")) {
+        console.log("💡 Problema de recurrencia: Verificar formato RRULE");
+        console.log("   Formato correcto: RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=20");
+      }
+    }
+  }
+}
+
+tests {
+  test("Status code is 201 (Created)", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Response is JSON", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+  });
+
+  test("Response has required event fields", function() {
+    const body = res.getBody();
+    expect(body.id).to.exist;
+    expect(body.summary).to.exist;
+    expect(body.start).to.exist;
+    expect(body.end).to.exist;
+    expect(body.html_link).to.exist;
+    expect(body.status).to.exist;
+  });
+
+  test("Event has recurrence configuration", function() {
+    const body = res.getBody();
+    expect(body.recurrence).to.exist;
+    expect(body.recurrence).to.be.an("array");
+    expect(body.recurrence.length).to.be.greaterThan(0);
+
+    // Verificar que la regla RRULE está presente
+    const hasRRule = body.recurrence.some(rule => rule.startsWith("RRULE:"));
+    expect(hasRRule, "Should have at least one RRULE").to.be.true;
+  });
+
+  test("Event has calendar information", function() {
+    const body = res.getBody();
+    expect(body.calendar_info).to.exist;
+    expect(body.calendar_info.calendar_id).to.equal("primary");
+    expect(body.calendar_info.calendar_name).to.exist;
+  });
+
+  test("Event has worker metadata for standup", function() {
+    const body = res.getBody();
+    expect(body.event_metadata).to.exist;
+    expect(body.event_metadata.event_type).to.equal("standup");
+    expect(body.event_metadata.created_by_worker).to.be.true;
+    expect(body.event_metadata.worker_version).to.exist;
+  });
+
+  test("Event summary matches request", function() {
+    const body = res.getBody();
+    expect(body.summary).to.equal("Daily Standup Meeting");
+  });
+
+  test("Event has correct attendees", function() {
+    const body = res.getBody();
+    expect(body.attendees).to.be.an("array");
+    expect(body.attendees.length).to.equal(3);
+
+    const emails = body.attendees.map(a => a.email);
+    expect(emails).to.include("dev1@example.com");
+    expect(emails).to.include("dev2@example.com");
+    expect(emails).to.include("scrum-master@example.com");
+  });
+
+  test("Event has reminders configured", function() {
+    const body = res.getBody();
+    expect(body.reminders).to.exist;
+    expect(body.reminders.useDefault).to.be.false;
+    expect(body.reminders.overrides).to.be.an("array");
+    expect(body.reminders.overrides.length).to.equal(1);
+    expect(body.reminders.overrides[0].method).to.equal("popup");
+    expect(body.reminders.overrides[0].minutes).to.equal(10);
+  });
+
+  test("Event dates are valid", function() {
+    const body = res.getBody();
+    const startDate = new Date(body.start.dateTime);
+    const endDate = new Date(body.end.dateTime);
+
+    expect(startDate.getTime()).to.be.lessThan(endDate.getTime());
+    expect(body.start.timeZone).to.equal("America/Santiago");
+    expect(body.end.timeZone).to.equal("America/Santiago");
+  });
+
+  test("Event duration is 30 minutes", function() {
+    const body = res.getBody();
+    const startDate = new Date(body.start.dateTime);
+    const endDate = new Date(body.end.dateTime);
+    const durationMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
+
+    expect(durationMinutes).to.equal(30);
+  });
+
+  test("Event starts on a Monday at 9 AM", function() {
+    const body = res.getBody();
+    const startDate = new Date(body.start.dateTime);
+
+    expect(startDate.getDay()).to.equal(1); // Monday = 1
+    expect(startDate.getHours()).to.equal(9); // 9 AM in local time
+    expect(startDate.getMinutes()).to.equal(0);
+  });
+
+  test("Recurrence rule is valid for weekdays", function() {
+    const body = res.getBody();
+    const rrule = body.recurrence.find(rule => rule.startsWith("RRULE:"));
+
+    expect(rrule).to.exist;
+    expect(rrule).to.contain("FREQ=DAILY");
+    expect(rrule).to.contain("BYDAY=MO,TU,WE,TH,FR");
+    expect(rrule).to.contain("COUNT=20");
+  });
+
+  test("Creator and organizer are set", function() {
+    const body = res.getBody();
+    expect(body.creator).to.exist;
+    expect(body.organizer).to.exist;
+    expect(body.creator.self).to.be.true;
+    expect(body.organizer.self).to.be.true;
+  });
+}
+
+docs {
+  # Crear Evento Recurrente
+
+  Este endpoint demuestra la creación de eventos recurrentes con patrones específicos de repetición, ideal para reuniones regulares como standups, reuniones semanales, o eventos que se repiten con frecuencia.
+
+  ## Características del Evento Recurrente
+
+  ### Configuración de Ejemplo
+  - **Tipo**: Daily Standup Meeting (`standup`)
+  - **Frecuencia**: Lunes a Viernes por 4 semanas (20 instancias)
+  - **Duración**: 30 minutos
+  - **Horario**: 9:00 AM en zona horaria del usuario
+  - **Inicio**: Próximo lunes desde la fecha actual
+
+  ### Patrón de Recurrencia
+  ```
+  RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=20
+  ```
+
+  **Explicación**:
+  - `FREQ=DAILY`: Frecuencia diaria
+  - `BYDAY=MO,TU,WE,TH,FR`: Solo días laborales (lunes a viernes)
+  - `COUNT=20`: Total de 20 instancias (4 semanas × 5 días)
+
+  ## Otros Patrones de Recurrencia Útiles
+
+  ### Reunión Semanal
+  ```json
+  "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=MO;COUNT=12"]
+  ```
+  *Todos los lunes por 3 meses*
+
+  ### Reunión Quincenal
+  ```json
+  "recurrence": ["RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=WE;COUNT=6"]
+  ```
+  *Cada dos miércoles por 3 meses*
+
+  ### Reunión Mensual
+  ```json
+  "recurrence": ["RRULE:FREQ=MONTHLY;BYMONTHDAY=1;COUNT=6"]
+  ```
+  *El primer día de cada mes por 6 meses*
+
+  ### Sprint Planning (cada 2 semanas)
+  ```json
+  "recurrence": ["RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;COUNT=13"]
+  ```
+  *Cada dos lunes por 6 meses (13 sprints)*
+
+  ## Tipos de Evento para Recurrencias
+
+  ### Reuniones Regulares
+  - `standup`: Reuniones diarias de equipo
+  - `meeting`: Reuniones recurrentes generales
+  - `review`: Sesiones de revisión periódicas
+  - `planning`: Sesiones de planificación regulares
+
+  ### Eventos de Desarrollo
+  - `deployment`: Ventanas de despliegue regulares
+  - `milestone`: Hitos recurrentes de proyecto
+
+  ### Recordatorios Personales
+  - `reminder`: Recordatorios periódicos
+  - `blocked-time`: Tiempo bloqueado regular
+
+  ## Respuesta Esperada
+
+  La respuesta incluye el campo `recurrence` con las reglas configuradas:
+
+  ```json
+  {
+    "id": "recurring_event_xyz123",
+    "summary": "Daily Standup Meeting",
+    "recurrence": [
+      "RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=20"
+    ],
+    "start": {
+      "dateTime": "2024-03-18T09:00:00-03:00",
+      "timeZone": "America/Santiago"
+    },
+    "end": {
+      "dateTime": "2024-03-18T09:30:00-03:00",
+      "timeZone": "America/Santiago"
+    },
+    "attendees": [...],
+    "calendar_info": {...},
+    "event_metadata": {
+      "event_type": "standup",
+      "created_by_worker": true,
+      "worker_version": "2.1.0"
+    }
+  }
+  ```
+
+  ## Validaciones Específicas para Recurrencia
+
+  ### Formato RRULE
+  - Debe seguir especificación RFC5545
+  - Campos válidos: FREQ, INTERVAL, BYDAY, COUNT, UNTIL
+  - Valores FREQ: DAILY, WEEKLY, MONTHLY, YEARLY
+
+  ### Limitaciones
+  - Máximo 100 instancias por evento recurrente
+  - No se permiten patrones de recurrencia complejos anidados
+  - UNTIL y COUNT no pueden usarse simultáneamente
+
+  ## Script Inteligente de Horarios
+
+  El script pre-request calcula automáticamente:
+  1. **Próximo lunes**: Encuentra el siguiente lunes desde hoy
+  2. **Hora fija**: Establece 9:00 AM en zona local
+  3. **Duración**: 30 minutos para standups típicos
+
+  ### Lógica del Cálculo
+  ```javascript
+  const daysUntilMonday = (1 + 7 - now.getDay()) % 7;
+  const nextMonday = new Date(now);
+  nextMonday.setDate(now.getDate() + (daysUntilMonday === 0 ? 7 : daysUntilMonday));
+  ```
+
+  ## Casos de Uso Comunes
+
+  ### 1. Standup Diario
+  ```json
+  {
+    "event_type": "standup",
+    "summary": "Daily Standup",
+    "recurrence": ["RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=20"]
+  }
+  ```
+
+  ### 2. Retrospectiva de Sprint
+  ```json
+  {
+    "event_type": "review",
+    "summary": "Sprint Retrospective",
+    "recurrence": ["RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=FR;COUNT=13"]
+  }
+  ```
+
+  ### 3. Demo Semanal
+  ```json
+  {
+    "event_type": "presentation",
+    "summary": "Weekly Demo",
+    "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=TH;COUNT=12"]
+  }
+  ```
+
+  ### 4. Mantenimiento Mensual
+  ```json
+  {
+    "event_type": "deployment",
+    "summary": "Monthly Maintenance",
+    "recurrence": ["RRULE:FREQ=MONTHLY;BYMONTHDAY=1;COUNT=6"]
+  }
+  ```
+
+  ## Verificación Post-Creación
+
+  Después de crear el evento recurrente:
+  1. **Google Calendar**: Verifica que se muestren múltiples instancias
+  2. **Request 05/06**: Los eventos aparecerán en consultas de today/week según fechas
+  3. **Edición**: Modificar una instancia permite elegir "solo esta" o "toda la serie"
+
+  ## Troubleshooting Recurrencia
+
+  ### Error: "Invalid recurrence rule"
+  **Causa**: Formato RRULE incorrecto
+  **Solución**: Verificar sintaxis RFC5545
+  ```
+  ✅ RRULE:FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;COUNT=20
+  ❌ RRULE:FREQ=DAILY;DAYS=WEEKDAYS;COUNT=20
+  ```
+
+  ### Error: "Too many recurrences"
+  **Causa**: COUNT > 100 o patrón muy frecuente
+  **Solución**: Reducir COUNT o cambiar INTERVAL
+
+  ### Instancias no aparecen
+  **Causa**: Fechas en el pasado o muy futuro
+  **Solución**: Usar fechas within current calendar view
+
+  ## Prerequisitos Adicionales
+
+  Para eventos recurrentes:
+  1. Permisos normales de creación (`writer`/`owner`)
+  2. Calendario debe soportar recurrencia (todos los calendarios Google sí)
+  3. RRULE válida según RFC5545
+  4. Consideración de zona horaria para cálculos
+
+  ## Variables Guardadas
+
+  - `last_created_recurring_event_id`: ID del evento maestro recurrente
+  - `last_created_recurring_event_link`: Enlace a la serie completa
+  - `recurring_event_start_time`: Hora calculada del primer evento
+  - `recurring_event_end_time`: Hora de fin del primer evento
+
+  La creación de eventos recurrentes permite automatizar la gestión de reuniones regulares y mantener consistencia en horarios de equipo.
+}
